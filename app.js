@@ -153,7 +153,6 @@ const DOM = {
   // Headers Stats
   statTotalValue: document.getElementById("stat-total-value"),
   statCount: document.getElementById("stat-count"),
-  statNextTarget: document.getElementById("stat-next-target"),
   
   // Controls
   searchFilter: document.getElementById("search-filter"),
@@ -912,26 +911,6 @@ function updateStatsBar() {
   const wishCount = STATE.watches.filter(w => w.status === "wished").length;
   DOM.statCount.textContent = `${wishCount} Wishlisted`;
 
-  // 3. Next Target (highest priority marked as "wished")
-  let target = "None Set";
-  let highestPrio = 0;
-  
-  STATE.watches.forEach(w => {
-    if (w.status === "wished") {
-      const prioVal = parseInt(w.priority || 0);
-      if (prioVal > highestPrio) {
-        highestPrio = prioVal;
-        target = `${w.brand} ${w.model}`;
-      }
-    }
-  });
-
-  DOM.statNextTarget.textContent = target.length > 22 ? target.substring(0, 19) + "..." : target;
-  
-  const targetBadge = document.querySelector(".id-next-target");
-  if (targetBadge) {
-    targetBadge.setAttribute("title", target === "None Set" ? "No wishlisted items set" : `Highest Priority Target: ${target}`);
-  }
 }
 
 // 10. CRUD Operations
