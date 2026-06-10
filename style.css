@@ -526,27 +526,7 @@ body {
   transform: scale(1.05);
 }
 
-.card-priority-badge {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.25px;
-  text-transform: uppercase;
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--shadow-sm);
-  z-index: 2;
-}
 
-.priority-5 { background: rgba(184, 134, 11, 0.85); color: #fff; border: 1px solid rgba(255, 215, 0, 0.4); } /* Grail - Deep Gold */
-.priority-4 { background: rgba(230, 92, 0, 0.85); color: #fff; border: 1px solid rgba(230, 92, 0, 0.4); } /* Next purchase - Orange */
-.priority-3 { background: rgba(74, 85, 104, 0.85); color: #fff; border: 1px solid rgba(74, 85, 104, 0.4); }
-.priority-2 { background: rgba(113, 128, 150, 0.8); color: #fff; }
-.priority-1 { background: rgba(160, 174, 192, 0.75); color: #fff; }
 
 .card-status-pill {
   position: absolute;
@@ -1303,20 +1283,7 @@ body {
   object-fit: cover;
 }
 
-.inspect-priority-ribbon {
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  padding: 0.35rem 0.85rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: var(--shadow-md);
-}
+
 
 .inspect-price-tag {
   font-family: var(--font-heading);

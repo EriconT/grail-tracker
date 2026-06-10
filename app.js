@@ -196,7 +196,6 @@ const DOM = {
   watchMovement: document.getElementById("watch-movement"),
   watchStrap: document.getElementById("watch-strap"),
   watchImage: document.getElementById("watch-image"),
-  watchPriority: document.getElementById("watch-priority"),
   watchStatus: document.getElementById("watch-status"),
   watchNotes: document.getElementById("watch-notes"),
   
@@ -216,7 +215,6 @@ const DOM = {
   inspectModel: document.getElementById("inspect-model"),
   inspectRef: document.getElementById("inspect-ref"),
   inspectImage: document.getElementById("inspect-image"),
-  inspectPriorityBadge: document.getElementById("inspect-priority-badge"),
   inspectPrice: document.getElementById("inspect-price"),
   inspectNotes: document.getElementById("inspect-notes"),
   
@@ -616,7 +614,6 @@ async function performAutocompleteSearch(query) {
                 strap: specs.strap,
                 image: image,
                 notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
-                priority: 3,
                 status: "wished"
               }
             });
@@ -787,9 +784,7 @@ function renderWatches() {
 
   // 2. Sort watches
   filtered.sort((a, b) => {
-    if (sort === "priority-desc") {
-      return parseInt(b.priority || 0) - parseInt(a.priority || 0);
-    } else if (sort === "price-asc") {
+    if (sort === "price-asc") {
       return parseFloat(a.price || 0) - parseFloat(b.price || 0);
     } else if (sort === "price-desc") {
       return parseFloat(b.price || 0) - parseFloat(a.price || 0);
@@ -825,9 +820,6 @@ function renderWatches() {
     
     card.innerHTML = `
       <div class="card-img-wrapper">
-        <span class="card-priority-badge priority-${watch.priority || 1}">
-          ${watch.priority === 5 ? "Grail" : "Prio " + watch.priority}
-        </span>
         <span class="card-status-pill status-${watch.status || "wished"}">
           ${watch.status === "acquired" ? "Acquired" : "Wishlist"}
         </span>
@@ -939,7 +931,6 @@ function openWatchModal(watchId = null) {
     DOM.watchMovement.value = watch.movement || "";
     DOM.watchStrap.value = watch.strap || "";
     DOM.watchImage.value = watch.image || "";
-    DOM.watchPriority.value = watch.priority || 1;
     DOM.watchStatus.value = watch.status || "wished";
     DOM.watchNotes.value = watch.notes || "";
     
@@ -967,7 +958,6 @@ function handleSaveWatch(e) {
   const movement = DOM.watchMovement.value.trim();
   const strap = DOM.watchStrap.value.trim();
   const image = DOM.watchImage.value.trim();
-  const priority = parseInt(DOM.watchPriority.value) || 1;
   const status = DOM.watchStatus.value;
   const notes = DOM.watchNotes.value.trim();
 
@@ -982,7 +972,7 @@ function handleSaveWatch(e) {
     if (idx !== -1) {
       STATE.watches[idx] = {
         ...STATE.watches[idx],
-        brand, model, ref, price, dial, lug, movement, strap, image, priority, status, notes
+        brand, model, ref, price, dial, lug, movement, strap, image, status, notes
       };
       showToast("Watch Updated", `${brand} ${model} specifications saved.`, "success");
     }
@@ -990,7 +980,7 @@ function handleSaveWatch(e) {
     // Create
     const newWatch = {
       id: Date.now(), // timestamp works as unique ID
-      brand, model, ref, price, dial, lug, movement, strap, image, priority, status, notes
+      brand, model, ref, price, dial, lug, movement, strap, image, status, notes
     };
     STATE.watches.push(newWatch);
     showToast("Watch Added", `${brand} ${model} added to wishlist.`, "success");
@@ -1033,17 +1023,6 @@ function inspectWatch(watchId) {
   
   DOM.inspectImage.src = watch.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80";
   DOM.inspectPrice.textContent = `$${formatCurrency(watch.price)}`;
-  
-  // Set priority ribbon style
-  let prioName = "Level 1";
-  switch (parseInt(watch.priority)) {
-    case 5: prioName = "The Ultimate Grail"; break;
-    case 4: prioName = "Next Target"; break;
-    case 3: prioName = "High Priority"; break;
-    case 2: prioName = "Future Target"; break;
-  }
-  DOM.inspectPriorityBadge.textContent = prioName;
-  DOM.inspectPriorityBadge.className = `inspect-priority-ribbon priority-${watch.priority || 1}`;
   
   // Table specs
   DOM.inspectSpecBrand.textContent = watch.brand || "-";
