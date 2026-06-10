@@ -239,6 +239,7 @@ const DOM = {
   watchStrap: document.getElementById("watch-strap"),
   watchImage: document.getElementById("watch-image"),
   watchStatus: document.getElementById("watch-status"),
+  watchWebsite: document.getElementById("watch-website"),
   watchNotes: document.getElementById("watch-notes"),
   
   // Settings fields
@@ -267,6 +268,7 @@ const DOM = {
   inspectSpecMovement: document.getElementById("inspect-spec-movement"),
   inspectSpecStrap: document.getElementById("inspect-spec-strap"),
   inspectSpecStatus: document.getElementById("inspect-spec-status"),
+  inspectSpecWebsite: document.getElementById("inspect-spec-website"),
   
   btnInspectEdit: document.getElementById("btn-inspect-edit"),
   btnInspectDelete: document.getElementById("btn-inspect-delete"),
@@ -1008,6 +1010,7 @@ function openWatchModal(watchId = null) {
     DOM.watchStrap.value = watch.strap || "";
     DOM.watchImage.value = watch.image || "";
     DOM.watchStatus.value = watch.status || "wished";
+    DOM.watchWebsite.value = watch.website || "";
     DOM.watchNotes.value = watch.notes || "";
     
     updateImagePreview(watch.image);
@@ -1035,6 +1038,7 @@ function handleSaveWatch(e) {
   const strap = DOM.watchStrap.value.trim();
   const image = DOM.watchImage.value.trim();
   const status = DOM.watchStatus.value;
+  const website = DOM.watchWebsite.value.trim();
   const notes = DOM.watchNotes.value.trim();
 
   if (!brand || !model) {
@@ -1048,7 +1052,7 @@ function handleSaveWatch(e) {
     if (idx !== -1) {
       STATE.watches[idx] = {
         ...STATE.watches[idx],
-        brand, model, ref, price, dial, lug, movement, strap, image, status, notes
+        brand, model, ref, price, dial, lug, movement, strap, image, status, website, notes
       };
       showToast("Watch Updated", `${brand} ${model} specifications saved.`, "success");
     }
@@ -1056,7 +1060,7 @@ function handleSaveWatch(e) {
     // Create
     const newWatch = {
       id: Date.now(), // timestamp works as unique ID
-      brand, model, ref, price, dial, lug, movement, strap, image, status, notes
+      brand, model, ref, price, dial, lug, movement, strap, image, status, website, notes
     };
     STATE.watches.push(newWatch);
     showToast("Watch Added", `${brand} ${model} added to wishlist.`, "success");
@@ -1109,8 +1113,22 @@ function inspectWatch(watchId) {
   DOM.inspectSpecMovement.textContent = watch.movement || "-";
   DOM.inspectSpecStrap.textContent = watch.strap || "-";
   DOM.inspectSpecStatus.textContent = watch.status === "acquired" ? "Acquired 🎉" : "Wishlist";
+  
+  if (watch.website) {
+    let displayUrl = watch.website;
+    try {
+      const urlObj = new URL(watch.website);
+      displayUrl = urlObj.hostname.replace("www.", "");
+    } catch (e) {}
+    DOM.inspectSpecWebsite.innerHTML = `<a href="${watch.website}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);display:inline-flex;align-items:center;gap:0.25rem;text-decoration:none;">${displayUrl} <i data-lucide="external-link" style="width:12px;height:12px;"></i></a>`;
+  } else {
+    DOM.inspectSpecWebsite.textContent = "-";
+  }
 
   DOM.inspectNotes.textContent = watch.notes || "No journal entries written for this dream watch yet. Click Edit to add notes, thoughts, and memories linked to this watch.";
+  
+  // Initialize lucide icons in the inspect panel
+  lucide.createIcons();
 
   // Bind actions to buttons
   DOM.btnInspectEdit.onclick = () => {
