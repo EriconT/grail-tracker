@@ -139,6 +139,8 @@ let STATE = {
   settings: {
     githubPat: "",
     gistId: "",
+    googleApiKey: "",
+    googleCxId: "",
     autoSync: true
   },
   theme: "auto", // 'auto', 'light', or 'dark'
@@ -204,6 +206,8 @@ const DOM = {
   // Settings fields
   settingsPat: document.getElementById("settings-pat"),
   settingsGistId: document.getElementById("settings-gist-id"),
+  settingsGoogleKey: document.getElementById("settings-google-key"),
+  settingsGoogleCx: document.getElementById("settings-google-cx"),
   settingsAutoSync: document.getElementById("settings-auto-sync"),
   btnSaveSettings: document.getElementById("btn-save-settings"),
   btnCreateGist: document.getElementById("btn-create-gist"),
@@ -311,7 +315,14 @@ function loadLocalState() {
       const parsed = JSON.parse(cached);
       STATE.watches = parsed.watches || [];
       STATE.lastUpdated = parsed.lastUpdated || Date.now();
-      STATE.settings = parsed.settings || { githubPat: "", gistId: "", autoSync: true };
+      const loadedSettings = parsed.settings || {};
+      STATE.settings = {
+        githubPat: loadedSettings.githubPat || "",
+        gistId: loadedSettings.gistId || "",
+        googleApiKey: loadedSettings.googleApiKey || "",
+        googleCxId: loadedSettings.googleCxId || "",
+        autoSync: loadedSettings.autoSync !== false
+      };
       STATE.viewMode = parsed.viewMode || "grid";
     } catch (e) {
       console.error("Error parsing cache", e);
@@ -577,35 +588,179 @@ async function performAutocompleteSearch(query) {
     }
   });
 
-  // 2. Query Wikipedia API as a fallback/addition
-  try {
-    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=6&namespace=0&format=json&origin=*`;
-    const response = await fetch(wikiUrl);
-    if (response.ok) {
-      const data = await response.json();
-      const titles = data[1] || [];
-      const descriptions = data[2] || [];
-      
-      // Filter wiki results to include watches / horology related things or just generic matches
-      titles.forEach((title, idx) => {
-        // Exclude duplicate with catalog matches
-        const alreadyMatched = matches.some(m => m.title.toLowerCase() === title.toLowerCase());
-        if (!alreadyMatched) {
+  const { googleApiKey, googleCxId } = STATE.settings;
+
+  // 2. Query Google Custom Search (if key & cx are configured)
+  if (googleApiKey && googleCxId) {
+    try {
+      const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleApiKey)}&cx=${encodeURIComponent(googleCxId)}&q=${encodeURIComponent(query + " watch price")}`;
+      const response = await fetch(googleUrl);
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.items || [];
+        
+        items.forEach(item => {
+          const brand = guessBrandFromTitle(item.title);
+          const model = guessModelFromTitle(item.title, brand);
+          const price = extractPriceFromItem(item);
+          const image = extractImageFromItem(item);
+          
           matches.push({
-            type: "wiki",
-            title: title,
-            subtitle: descriptions[idx] ? descriptions[idx].substring(0, 60) + "..." : "Wikipedia Article",
-            data: { title: title }
+            type: "google",
+            title: `${brand} ${model}`.trim() || item.title,
+            subtitle: price ? `$${price.toLocaleString()} — ${item.displayLink}` : item.displayLink,
+            data: {
+              brand: brand,
+              model: model,
+              ref: "",
+              price: price,
+              dial: "",
+              lug: "",
+              movement: "",
+              strap: "",
+              image: image,
+              notes: item.snippet || "",
+              priority: 3,
+              status: "wished"
+            }
           });
-        }
-      });
+        });
+      }
+    } catch (error) {
+      console.error("Google Custom Search failed:", error);
     }
-  } catch (error) {
-    console.error("Wikipedia search failed:", error);
+  }
+
+  // 3. Query Wikipedia API as a fallback/addition (using the generator for full-text and immediate properties)
+  // Only query Wikipedia if we have fewer than 5 matches or Google search isn't enabled
+  if (matches.length < 5) {
+    try {
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800&pilimit=5&exintro=1&explaintext=1&exlimit=5&formatversion=2`;
+      const response = await fetch(wikiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        const pages = data.query?.pages || [];
+        
+        pages.forEach(page => {
+          // Exclude duplicate titles
+          const alreadyMatched = matches.some(m => m.title.toLowerCase() === page.title.toLowerCase());
+          if (!alreadyMatched) {
+            const brand = guessBrandFromTitle(page.title);
+            const model = guessModelFromTitle(page.title, brand);
+            const specs = parseWikiExtract(page.extract || "");
+            const image = page.original?.source || page.thumbnail?.source || "";
+            
+            matches.push({
+              type: "wiki",
+              title: page.title,
+              subtitle: page.extract ? page.extract.substring(0, 70) + "..." : "Wikipedia Article",
+              data: {
+                brand: brand,
+                model: model,
+                ref: "",
+                price: "",
+                dial: specs.dial,
+                lug: specs.lug,
+                movement: specs.movement,
+                strap: specs.strap,
+                image: image,
+                notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
+                priority: 3,
+                status: "wished"
+              }
+            });
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Wikipedia search failed:", error);
+    }
   }
 
   DOM.searchSpinner.style.display = "none";
   displayAutocompleteResults(matches);
+}
+
+// Helper utilities for autocomplete matching & text scraping
+function guessBrandFromTitle(title) {
+  const brands = ["Rolex", "Omega", "Seiko", "Tudor", "Casio", "Cartier", "Audemars Piguet", "Hamilton", "Tissot", "Patek Philippe", "Citizen", "IWC", "Breitling", "Longines", "Panerai", "Oris", "Sinn", "Nomos", "Grand Seiko", "Bulova", "Timex", "Orient", "Zenith", "TAG Heuer"];
+  const lowerTitle = title.toLowerCase();
+  for (const brand of brands) {
+    if (lowerTitle.includes(brand.toLowerCase())) {
+      return brand;
+    }
+  }
+  return title.split(" ")[0] || "";
+}
+
+function guessModelFromTitle(title, brand) {
+  if (!brand) return title;
+  const regex = new RegExp(`\\b${brand}\\b`, "gi");
+  let model = title.replace(regex, "").trim();
+  model = model.replace(/^\s*[-:|]\s*/, "").replace(/\s+/g, " ");
+  // Truncate typical trailing seller details
+  const cleanRegex = /\b(buy|price|specs|review|for sale|authorized dealer|shop)\b.*/i;
+  model = model.replace(cleanRegex, "").trim();
+  return model;
+}
+
+function extractPriceFromItem(item) {
+  const pagemap = item.pagemap || {};
+  if (pagemap.offer && pagemap.offer[0] && pagemap.offer[0].price) {
+    const priceStr = pagemap.offer[0].price.replace(/[^0-9.]/g, "");
+    const parsed = parseFloat(priceStr);
+    if (!isNaN(parsed) && parsed > 0) return Math.round(parsed);
+  }
+  if (pagemap.product && pagemap.product[0] && pagemap.product[0].price) {
+    const priceStr = pagemap.product[0].price.replace(/[^0-9.]/g, "");
+    const parsed = parseFloat(priceStr);
+    if (!isNaN(parsed) && parsed > 0) return Math.round(parsed);
+  }
+  const snippet = item.snippet || "";
+  const priceRegex = /\$\s*([0-9,]+(?:\.[0-9]{2})?)\b/;
+  const match = snippet.match(priceRegex);
+  if (match) {
+    const parsed = parseFloat(match[1].replace(/,/g, ""));
+    if (!isNaN(parsed)) return Math.round(parsed);
+  }
+  return "";
+}
+
+function extractImageFromItem(item) {
+  const pagemap = item.pagemap || {};
+  if (pagemap.metatags && pagemap.metatags[0] && pagemap.metatags[0]["og:image"]) {
+    return pagemap.metatags[0]["og:image"];
+  }
+  if (pagemap.cse_image && pagemap.cse_image[0] && pagemap.cse_image[0].src) {
+    return pagemap.cse_image[0].src;
+  }
+  if (pagemap.metatags && pagemap.metatags[0] && pagemap.metatags[0]["twitter:image"]) {
+    return pagemap.metatags[0]["twitter:image"];
+  }
+  return "";
+}
+
+function parseWikiExtract(extract) {
+  const data = { dial: "", lug: "", movement: "", strap: "" };
+  if (!extract) return data;
+  
+  const dialRegex = /\b(\d{2}(?:\.\d)?)\s*(?:mm|millimeter)/i;
+  const dialMatch = extract.match(dialRegex);
+  if (dialMatch) data.dial = `${dialMatch[1]}mm`;
+  
+  const lugRegex = /(?:lug-to-lug|lug width|distance between lugs|lugs)\s*(?:of\s*)?(\d{2}(?:\.\d)?)\s*(?:mm|millimeter)/i;
+  const lugMatch = extract.match(lugRegex);
+  if (lugMatch) data.lug = `${lugMatch[1]}mm`;
+  
+  if (/automatic|self-winding|co-axial/i.test(extract)) {
+    data.movement = "Automatic";
+  } else if (/quartz/i.test(extract)) {
+    data.movement = "Quartz";
+  } else if (/manual-wind|hand-wound|chronograph manual/i.test(extract)) {
+    data.movement = "Manual Wind";
+  }
+  
+  return data;
 }
 
 function displayAutocompleteResults(results) {
@@ -621,10 +776,9 @@ function displayAutocompleteResults(results) {
     const item = document.createElement("div");
     item.className = "autocomplete-item";
     
-    // Add default image for catalog, or generic icon for wiki
     let imageHtml = "";
-    if (res.type === "catalog" && res.data.image) {
-      imageHtml = `<img src="${res.data.image}" class="autocomplete-item-img" alt="Watch icon">`;
+    if (res.data && res.data.image) {
+      imageHtml = `<img src="${res.data.image}" class="autocomplete-item-img" alt="Watch icon" onerror="this.style.display='none'">`;
     } else {
       imageHtml = `<div class="autocomplete-item-img" style="display:flex;align-items:center;justify-content:center;background:var(--border-color)"><i data-lucide="search" style="width:16px;height:16px;color:var(--text-tertiary);"></i></div>`;
     }
@@ -632,8 +786,8 @@ function displayAutocompleteResults(results) {
     item.innerHTML = `
       ${imageHtml}
       <div class="autocomplete-item-text">
-        <span class="autocomplete-item-title">${res.title}</span>
-        <span class="autocomplete-item-source">${res.subtitle}</span>
+        <span class="autocomplete-item-title">${escapeHtml(res.title)}</span>
+        <span class="autocomplete-item-source">${escapeHtml(res.subtitle)}</span>
       </div>
     `;
     
@@ -649,83 +803,20 @@ async function selectAutocompleteItem(res) {
   DOM.autocompleteDropdown.style.display = "none";
   DOM.watchSearchInput.value = res.title;
   
-  if (res.type === "catalog") {
-    // Populate form directly from curated DB
-    const w = res.data;
-    DOM.watchBrand.value = w.brand || "";
-    DOM.watchModel.value = w.model || "";
-    DOM.watchRef.value = w.ref || "";
-    DOM.watchPrice.value = w.price || "";
-    DOM.watchDial.value = w.dial || "";
-    DOM.watchLug.value = w.lug || "";
-    DOM.watchMovement.value = w.movement || "";
-    DOM.watchStrap.value = w.strap || "";
-    DOM.watchImage.value = w.image || "";
-    DOM.watchNotes.value = w.notes || "";
-    
-    updateImagePreview(w.image);
-    showToast("Watch Auto-Filled", `Specs loaded for ${w.brand} ${w.model}.`, "success");
-  } 
-  else if (res.type === "wiki") {
-    // Fetch Wikipedia detailed page data
-    const title = res.data.title;
-    DOM.searchSpinner.style.display = "block";
-    
-    try {
-      const detailUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages|extracts&titles=${encodeURIComponent(title)}&pithumbsize=800&exintro=1&explaintext=1&formatversion=2`;
-      const response = await fetch(detailUrl);
-      
-      if (!response.ok) throw new Error("Could not fetch Wikipedia details");
-      
-      const data = await response.json();
-      const page = data.query.pages[0];
-      
-      if (page) {
-        // Extract basic data
-        const articleText = page.extract || "";
-        const imageSrc = page.original?.source || page.thumbnail?.source || "";
-        
-        // Brand heuristic: first word of title
-        const words = title.split(" ");
-        const brand = words[0];
-        const model = words.slice(1).join(" ");
-        
-        DOM.watchBrand.value = brand;
-        DOM.watchModel.value = model;
-        DOM.watchImage.value = imageSrc;
-        DOM.watchNotes.value = articleText.substring(0, 300) + "... (Source: Wikipedia)";
-        
-        // Spec scraping heuristics (Regex)
-        const dialRegex = /\b(\d{2}(?:\.\d)?)\s*(?:mm|millimeter)/i;
-        const dialMatch = articleText.match(dialRegex);
-        if (dialMatch) {
-          DOM.watchDial.value = `${dialMatch[1]}mm`;
-        } else {
-          DOM.watchDial.value = "";
-        }
-        
-        // Match movements
-        let movement = "";
-        if (/automatic|self-winding/i.test(articleText)) movement = "Automatic";
-        else if (/quartz/i.test(articleText)) movement = "Quartz";
-        else if (/manual-wind|hand-wound|chronograph manual/i.test(articleText)) movement = "Manual Wind";
-        DOM.watchMovement.value = movement;
-        
-        DOM.watchRef.value = "";
-        DOM.watchPrice.value = "";
-        DOM.watchLug.value = "";
-        DOM.watchStrap.value = "";
-        
-        updateImagePreview(imageSrc);
-        showToast("Wikipedia Loaded", `Pulled article data for ${title}.`, "success");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Wikipedia Detail Error", "Could not parse page description.", "warning");
-    } finally {
-      DOM.searchSpinner.style.display = "none";
-    }
-  }
+  const w = res.data;
+  DOM.watchBrand.value = w.brand || "";
+  DOM.watchModel.value = w.model || "";
+  DOM.watchRef.value = w.ref || "";
+  DOM.watchPrice.value = w.price || "";
+  DOM.watchDial.value = w.dial || "";
+  DOM.watchLug.value = w.lug || "";
+  DOM.watchMovement.value = w.movement || "";
+  DOM.watchStrap.value = w.strap || "";
+  DOM.watchImage.value = w.image || "";
+  DOM.watchNotes.value = w.notes || "";
+  
+  updateImagePreview(w.image);
+  showToast("Watch Auto-Filled", `Specs loaded for ${w.brand || res.title}.`, "success");
 }
 
 // 9. Watch Card Rendering Engine
@@ -1142,6 +1233,8 @@ function setupEventListeners() {
 function openSettingsModal() {
   DOM.settingsPat.value = STATE.settings.githubPat || "";
   DOM.settingsGistId.value = STATE.settings.gistId || "";
+  DOM.settingsGoogleKey.value = STATE.settings.googleApiKey || "";
+  DOM.settingsGoogleCx.value = STATE.settings.googleCxId || "";
   DOM.settingsAutoSync.checked = STATE.settings.autoSync;
   DOM.modalSettings.classList.add("active");
 }
@@ -1149,9 +1242,17 @@ function openSettingsModal() {
 function handleSaveSettings() {
   const pat = DOM.settingsPat.value.trim();
   const gistId = DOM.settingsGistId.value.trim();
+  const googleKey = DOM.settingsGoogleKey.value.trim();
+  const googleCx = DOM.settingsGoogleCx.value.trim();
   const autoSync = DOM.settingsAutoSync.checked;
   
-  STATE.settings = { githubPat: pat, gistId, autoSync };
+  STATE.settings = {
+    githubPat: pat,
+    gistId: gistId,
+    googleApiKey: googleKey,
+    googleCxId: googleCx,
+    autoSync: autoSync
+  };
   saveLocalState();
   
   showToast("Settings Saved", "Preferences updated in local storage.", "success");
