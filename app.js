@@ -295,6 +295,10 @@ const STORAGE_KEY = "grail_tracker_state";
 
 // 4. Initialize App
 window.addEventListener("DOMContentLoaded", () => {
+  console.log("App starting up...");
+  console.log("User agent:", navigator.userAgent);
+  console.log("Local storage exists:", !!localStorage.getItem(STORAGE_KEY));
+  
   loadLocalState();
   initTheme();
   renderWatches();
@@ -302,13 +306,20 @@ window.addEventListener("DOMContentLoaded", () => {
   
   // Trigger auto sync on load if Gist credentials exist
   if (STATE.settings.githubPat && STATE.settings.gistId && STATE.settings.autoSync) {
+    console.log("Auto-sync credentials detected, starting auto-sync...");
     syncWithGist();
   } else {
+    console.log("Auto-sync bypassed or credentials missing.", {
+      hasPat: !!STATE.settings.githubPat,
+      hasGist: !!STATE.settings.gistId,
+      autoSync: STATE.settings.autoSync
+    });
     updateSyncUIStatus("offline");
   }
   
   // Initialize Lucide Icons
   lucide.createIcons();
+  console.log("Initialization complete.");
 });
 
 // 5. Theme Handlers
@@ -367,6 +378,7 @@ function loadLocalState() {
         autoSync: loadedSettings.autoSync !== false
       };
       STATE.viewMode = parsed.viewMode || "grid";
+      console.log(`Loaded cache: ${STATE.watches.length} watches, lastUpdated: ${STATE.lastUpdated}`);
     } catch (e) {
       console.error("Error parsing cache", e);
       showToast("Data Loading Error", "Local cache corrupt. Resetting database.", "error");
@@ -374,6 +386,7 @@ function loadLocalState() {
   } else {
     STATE.watches = [];
     STATE.lastUpdated = 0;
+    console.log("No cache found. Initialized empty local database.");
   }
   
   // Apply View Mode
@@ -406,7 +419,9 @@ function saveLocalState(updateTimestamp = false) {
 // 7. Watch Database Syncing Engine (GitHub Gist API)
 async function syncWithGist(isSilentPush = false, forcePull = false) {
   const { githubPat, gistId } = STATE.settings;
+  console.log(`syncWithGist triggered. silent: ${isSilentPush}, forcePull: ${forcePull}`);
   if (!githubPat || !gistId) {
+    console.log("Sync skipped: credentials missing.");
     updateSyncUIStatus("offline");
     return;
   }
@@ -419,6 +434,7 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
 
   try {
     // 1. Fetch remote content
+    console.log(`Fetching Gist ${gistId}...`);
     const response = await fetch(`https://api.github.com/gists/${gistId}`, {
       method: "GET",
       headers: {
@@ -427,6 +443,7 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
       }
     });
 
+    console.log(`Gist fetch response: ${response.status} ${response.statusText}`);
     if (!response.ok) {
       throw new Error(`GitHub API returned ${response.status}`);
     }
@@ -439,8 +456,10 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
       const remoteData = JSON.parse(gistData.files[fileName].content);
       const remoteTimestamp = remoteData.lastUpdated || 0;
       const localTimestamp = STATE.lastUpdated || 0;
+      console.log(`Gist evaluation: remoteTime=${remoteTimestamp}, localTime=${localTimestamp}, remoteWatches=${remoteData.watches?.length || 0}`);
 
       if (forcePull || remoteTimestamp > localTimestamp) {
+        console.log("Decision: PULLING remote changes (remote is newer or forcePull is active)");
         // Remote is newer - Pull changes
         STATE.watches = remoteData.watches || [];
         STATE.lastUpdated = remoteTimestamp;
@@ -459,17 +478,20 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
         showToast("Database Synced", "Successfully pulled newer data from GitHub.", "success");
       } 
       else if (localTimestamp > remoteTimestamp || !remoteTimestamp) {
+        console.log("Decision: PUSHING local changes (local is newer)");
         // Local is newer - Push changes
         await pushStateToGist(githubPat, gistId);
         if (loaderToastId) dismissToast(loaderToastId);
         if (!isSilentPush) showToast("Database Synced", "Successfully pushed local updates to cloud.", "success");
       } 
       else {
+        console.log("Decision: ALREADY IN SYNC");
         // Equal - No actions needed
         if (loaderToastId) dismissToast(loaderToastId);
         if (!isSilentPush) showToast("Database Synced", "Cloud and local data are fully in sync.", "success");
       }
     } else {
+      console.log("Decision: Gist file does not exist, initializing Gist with local data...");
       // File not present in Gist - Initialize file with local data
       await pushStateToGist(githubPat, gistId);
       if (loaderToastId) dismissToast(loaderToastId);
@@ -1163,6 +1185,10 @@ function setupEventListeners() {
     if (viewer) {
       const isHidden = viewer.style.display === "none";
       viewer.style.display = isHidden ? "block" : "none";
+      if (isHidden) {
+        viewer.textContent = DEBUG_LOGS.join('\n') || "No logs captured yet.";
+        setTimeout(() => { viewer.scrollTop = viewer.scrollHeight; }, 10);
+      }
       DOM.btnToggleDebug.innerHTML = isHidden 
         ? `<i data-lucide="terminal"></i> Hide Debug Logs`
         : `<i data-lucide="terminal"></i> Show Debug Logs`;
