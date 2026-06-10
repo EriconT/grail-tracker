@@ -896,11 +896,13 @@ function renderWatches() {
     // Clean default image or placeholder
     const imageSource = watch.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80";
     
+    const statusPill = watch.status === "acquired" 
+      ? `<span class="card-status-pill status-acquired">Acquired</span>` 
+      : "";
+
     card.innerHTML = `
       <div class="card-img-wrapper">
-        <span class="card-status-pill status-${watch.status || "wished"}">
-          ${watch.status === "acquired" ? "Acquired" : "Wishlist"}
-        </span>
+        ${statusPill}
         <img src="${imageSource}" alt="${watch.brand} ${watch.model}" loading="lazy">
       </div>
       
