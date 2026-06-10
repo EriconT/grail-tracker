@@ -72,7 +72,12 @@ To load your watches on a new device (like your phone):
 
 ## 🔍 How to Setup Google Autocomplete Search (Optional)
 
-By default, the app uses a rich, full-text **Wikipedia search** to fetch watch details and photos keylessly. If you want the search to query Google (pulling real web images and average retail prices), you can enable Google Custom Search in settings:
+> [!WARNING]
+> **Google Custom Search API Restrictions (2026)**: Google has officially closed the Custom Search JSON API to all new projects and accounts ahead of its full discontinuation on January 1, 2027. If you create a new Google Cloud project, Google will return a `permission denied / no access` error. 
+> 
+> We recommend using the default, keyless **Wikipedia Search**, which is fully integrated, free, and works out-of-the-box without any API keys or configuration!
+
+If you have an older, existing Google Cloud project with prior access to the Custom Search JSON API, you can enable it in settings:
 
 ### Step 1: Get a Google Custom Search API Key
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
