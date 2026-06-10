@@ -209,6 +209,7 @@ const DOM = {
   settingsGoogleKey: document.getElementById("settings-google-key"),
   settingsGoogleCx: document.getElementById("settings-google-cx"),
   settingsAutoSync: document.getElementById("settings-auto-sync"),
+  searchFormTip: document.getElementById("search-form-tip"),
   btnSaveSettings: document.getElementById("btn-save-settings"),
   btnCreateGist: document.getElementById("btn-create-gist"),
   btnForceSync: document.getElementById("btn-force-sync"),
@@ -340,6 +341,7 @@ function loadLocalState() {
     DOM.viewGrid.classList.remove("active");
     DOM.viewList.classList.add("active");
   }
+  updateSearchTip();
 }
 
 function saveLocalState() {
@@ -547,6 +549,17 @@ function updateSyncUIStatus(status) {
     DOM.btnSyncNow.style.display = "none";
   }
   lucide.createIcons();
+}
+
+function updateSearchTip() {
+  const { googleApiKey, googleCxId } = STATE.settings;
+  if (DOM.searchFormTip) {
+    if (googleApiKey && googleCxId) {
+      DOM.searchFormTip.textContent = "Searches our curated catalog and Google Custom Search dynamically to autofill details, specifications, and images.";
+    } else {
+      DOM.searchFormTip.textContent = "Searches our curated catalog and Wikipedia dynamically to autofill details, specifications, and images.";
+    }
+  }
 }
 
 // 8. Search Autocomplete Logic (Wikipedia + Curated Catalog)
@@ -1262,6 +1275,7 @@ function handleSaveSettings() {
     autoSync: autoSync
   };
   saveLocalState();
+  updateSearchTip();
   
   showToast("Settings Saved", "Preferences updated in local storage.", "success");
   closeModal(DOM.modalSettings);
