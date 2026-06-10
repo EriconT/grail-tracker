@@ -81,7 +81,7 @@ By default, the app uses a rich, full-text **Wikipedia search** to fetch watch d
 4. Go to **APIs & Services** -> **Credentials**, click **Create Credentials**, and choose **API Key**. Copy your generated key.
 
 ### Step 2: Get a Search Engine ID (CX)
-1. Go to the [Google Programmable Search Engine Console](https://programmable-searchjs.google.com/about/).
+1. Go to the [Google Programmable Search Engine Console](https://programmablesearchengine.google.com/about/).
 2. Click **Add** to create a new search engine.
 3. Under *Sites to search*, select **Search the entire web**.
 4. Give it a name (e.g. `Watch Search`) and click **Create**.
