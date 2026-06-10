@@ -1677,3 +1677,14 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* Mobile layout modifications (disable sticky header) */
+@media (max-width: 768px) {
+  .app-header {
+    position: static;
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 1rem 0;
+  }
+}
