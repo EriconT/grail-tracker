@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons for clean SVG representation -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.3">
 </head>
 <body>
 
@@ -324,9 +324,44 @@
           <button id="btn-create-gist" class="btn btn-outline">
             <i data-lucide="git-branch"></i> Create Private Gist for Me
           </button>
-          <button id="btn-force-sync" class="btn btn-secondary">
-            <i data-lucide="refresh-cw" class="spin-icon"></i> Test & Sync Now
-          </button>
+        </div>
+
+        <hr class="form-divider">
+
+        <h3>Cloud Sync Diagnostics</h3>
+        <div class="diagnostics-panel">
+          <div class="diag-status-row">
+            <div class="diag-column">
+              <span class="diag-label">Local Database</span>
+              <div class="diag-value-group">
+                <span id="diag-local-count" class="diag-value">-</span>
+                <span class="diag-subtext">watches</span>
+              </div>
+              <span id="diag-local-time" class="diag-time">Never updated</span>
+            </div>
+            <div class="diag-column border-left">
+              <span class="diag-label">Cloud Database</span>
+              <div class="diag-value-group">
+                <span id="diag-cloud-count" class="diag-value">-</span>
+                <span class="diag-subtext">watches</span>
+              </div>
+              <span id="diag-cloud-time" class="diag-time">Not checked</span>
+            </div>
+          </div>
+          
+          <div class="diag-msg-box" id="diag-msg-box" style="display: none;"></div>
+          
+          <div class="settings-actions-group diag-actions">
+            <button id="btn-diag-pull" class="btn btn-secondary tooltip" title="Replace local browser data with the data stored in your GitHub Gist.">
+              <i data-lucide="download-cloud"></i> Pull from Cloud
+            </button>
+            <button id="btn-diag-push" class="btn btn-secondary tooltip" title="Replace Gist data with the data on this browser.">
+              <i data-lucide="upload-cloud"></i> Push to Cloud
+            </button>
+            <button id="btn-diag-merge" class="btn btn-outline tooltip" title="Merge both local and cloud databases. De-duplicates matching watches by ID.">
+              <i data-lucide="git-merge"></i> Merge Databases
+            </button>
+          </div>
         </div>
 
         <hr class="form-divider">
@@ -454,6 +489,6 @@
   </div>
 
   <!-- App Script Entry -->
-  <script src="app.js"></script>
+  <script src="app.js?v=1.0.3"></script>
 </body>
 </html>

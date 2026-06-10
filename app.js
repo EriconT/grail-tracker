@@ -205,7 +205,6 @@ const DOM = {
   settingsAutoSync: document.getElementById("settings-auto-sync"),
   btnSaveSettings: document.getElementById("btn-save-settings"),
   btnCreateGist: document.getElementById("btn-create-gist"),
-  btnForceSync: document.getElementById("btn-force-sync"),
   btnExportJson: document.getElementById("btn-export-json"),
   importJsonFile: document.getElementById("import-json-file"),
   btnClearAll: document.getElementById("btn-clear-all"),
@@ -235,7 +234,17 @@ const DOM = {
   syncStatusText: document.getElementById("sync-status-text"),
   syncDot: document.getElementById("sync-dot"),
   footerSyncMsg: document.getElementById("footer-sync-msg"),
-  toastContainer: document.getElementById("toast-container")
+  toastContainer: document.getElementById("toast-container"),
+
+  // Cloud Sync Diagnostics
+  diagLocalCount: document.getElementById("diag-local-count"),
+  diagLocalTime: document.getElementById("diag-local-time"),
+  diagCloudCount: document.getElementById("diag-cloud-count"),
+  diagCloudTime: document.getElementById("diag-cloud-time"),
+  diagMsgBox: document.getElementById("diag-msg-box"),
+  btnDiagPull: document.getElementById("btn-diag-pull"),
+  btnDiagPush: document.getElementById("btn-diag-push"),
+  btnDiagMerge: document.getElementById("btn-diag-merge")
 };
 
 // State key variables
@@ -1103,7 +1112,9 @@ function setupEventListeners() {
   // Settings Modals Actions
   DOM.btnSaveSettings.onclick = handleSaveSettings;
   DOM.btnCreateGist.onclick = () => createNewPrivateGist(DOM.settingsPat.value.trim());
-  DOM.btnForceSync.onclick = () => syncWithGist(false, true);
+  DOM.btnDiagPull.onclick = forcePullFromCloud;
+  DOM.btnDiagPush.onclick = forcePushToCloud;
+  DOM.btnDiagMerge.onclick = mergeCloudAndLocal;
   DOM.btnExportJson.onclick = exportBackup;
   DOM.importJsonFile.onchange = importBackup;
   
@@ -1146,6 +1157,9 @@ function openSettingsModal() {
   DOM.settingsPat.value = STATE.settings.githubPat || "";
   DOM.settingsGistId.value = STATE.settings.gistId || "";
   DOM.settingsAutoSync.checked = STATE.settings.autoSync;
+  
+  updateDiagnosticsUI();
+  
   DOM.modalSettings.classList.add("active");
 }
 
@@ -1302,5 +1316,206 @@ function dismissToast(id) {
         toast.remove();
       }
     });
+  }
+}
+
+// 15. Cloud Sync Diagnostics & Manual Controls Logic
+async function updateDiagnosticsUI() {
+  if (!DOM.diagLocalCount) return; // safety check
+  
+  // 1. Update Local Stats
+  DOM.diagLocalCount.textContent = STATE.watches.length;
+  DOM.diagLocalTime.textContent = STATE.lastUpdated ? new Date(STATE.lastUpdated).toLocaleString() : "Never updated";
+
+  // Reset Cloud Stats
+  DOM.diagCloudCount.textContent = "-";
+  DOM.diagCloudTime.textContent = "Checking...";
+  DOM.diagMsgBox.style.display = "none";
+  DOM.diagMsgBox.className = "diag-msg-box";
+  DOM.diagMsgBox.innerHTML = "";
+
+  // Enable/Disable buttons based on settings
+  const hasCredentials = !!(STATE.settings.githubPat && STATE.settings.gistId);
+  DOM.btnDiagPull.disabled = !hasCredentials;
+  DOM.btnDiagPush.disabled = !hasCredentials;
+  DOM.btnDiagMerge.disabled = !hasCredentials;
+
+  if (!hasCredentials) {
+    DOM.diagCloudTime.textContent = "Not configured";
+    DOM.diagMsgBox.innerHTML = "<strong>Sync not configured.</strong> Enter your GitHub PAT and Gist ID, click 'Save Settings' to enable cross-device syncing.";
+    DOM.diagMsgBox.style.display = "block";
+    return;
+  }
+
+  // 2. Fetch Gist Metadata asynchronously
+  try {
+    const response = await fetch(`https://api.github.com/gists/${STATE.settings.gistId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `token ${STATE.settings.githubPat}`,
+        "Accept": "application/vnd.github.v3+json"
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("Gist not found. Check if Gist ID is correct.");
+      } else if (response.status === 401) {
+        throw new Error("Unauthorized PAT. Check if Personal Access Token is correct and has 'gists' scope.");
+      } else {
+        throw new Error(`GitHub API returned status ${response.status}`);
+      }
+    }
+
+    const gistData = await response.json();
+    const fileName = "grail_tracker_watches.json";
+
+    if (gistData.files && gistData.files[fileName]) {
+      const remoteData = JSON.parse(gistData.files[fileName].content);
+      const remoteCount = remoteData.watches ? remoteData.watches.length : 0;
+      const remoteTimestamp = remoteData.lastUpdated || 0;
+
+      DOM.diagCloudCount.textContent = remoteCount;
+      DOM.diagCloudTime.textContent = remoteTimestamp ? new Date(remoteTimestamp).toLocaleString() : "Never updated";
+
+      // Compare local and remote to provide helpful suggestions
+      const localTimestamp = STATE.lastUpdated || 0;
+      
+      // Give a tiny tolerance for timestamps (e.g. 1 second) to prevent float/rounding differences showing as mismatch
+      const timeDiff = Math.abs(localTimestamp - remoteTimestamp);
+      
+      if (timeDiff > 1000) {
+        if (remoteTimestamp > localTimestamp) {
+          DOM.diagMsgBox.innerHTML = "<strong>Cloud database is newer.</strong> We recommend clicking <strong>Pull from Cloud</strong> to retrieve the latest version.";
+          DOM.diagMsgBox.className = "diag-msg-box warning";
+        } else {
+          DOM.diagMsgBox.innerHTML = "<strong>Local database is newer.</strong> We recommend clicking <strong>Push to Cloud</strong> to save your current watches to the cloud.";
+          DOM.diagMsgBox.className = "diag-msg-box warning";
+        }
+      } else {
+        DOM.diagMsgBox.innerHTML = "<strong>Fully in sync.</strong> The local browser and GitHub Gist match perfectly.";
+        DOM.diagMsgBox.className = "diag-msg-box success";
+      }
+      DOM.diagMsgBox.style.display = "block";
+    } else {
+      DOM.diagCloudCount.textContent = "0";
+      DOM.diagCloudTime.textContent = "File not initialized";
+      DOM.diagMsgBox.innerHTML = "<strong>Cloud database file not found in Gist.</strong> Click <strong>Push to Cloud</strong> to initialize it with your current local watches.";
+      DOM.diagMsgBox.className = "diag-msg-box warning";
+      DOM.diagMsgBox.style.display = "block";
+    }
+  } catch (error) {
+    DOM.diagCloudTime.textContent = "Error";
+    DOM.diagMsgBox.innerHTML = `<strong>Failed to check cloud state:</strong> ${escapeHtml(error.message)}`;
+    DOM.diagMsgBox.className = "diag-msg-box error";
+    DOM.diagMsgBox.style.display = "block";
+  }
+}
+
+async function forcePullFromCloud() {
+  const confirmed = confirm("Are you sure you want to overwrite your local wishlist with the data from the cloud? Any local changes not pushed will be permanently lost.");
+  if (!confirmed) return;
+
+  await syncWithGist(false, true);
+  updateDiagnosticsUI();
+}
+
+async function forcePushToCloud() {
+  const confirmed = confirm("Are you sure you want to overwrite the cloud database with your local wishlist? This will replace the Gist data on GitHub.");
+  if (!confirmed) return;
+
+  const { githubPat, gistId } = STATE.settings;
+  if (!githubPat || !gistId) {
+    showToast("Push Failed", "Credentials not configured.", "error");
+    return;
+  }
+
+  const loaderToastId = showToast("Pushing Database", "Uploading local data to GitHub...", "loading");
+  try {
+    STATE.lastUpdated = Date.now();
+    saveLocalState(false);
+
+    await pushStateToGist(githubPat, gistId);
+    dismissToast(loaderToastId);
+    showToast("Push Successful", "Successfully pushed local updates to cloud.", "success");
+    updateDiagnosticsUI();
+    updateSyncUIStatus("online");
+  } catch (error) {
+    console.error("Force push failed:", error);
+    dismissToast(loaderToastId);
+    showToast("Push Failed", error.message || "Failed to push to Gist", "error");
+  }
+}
+
+async function mergeCloudAndLocal() {
+  const { githubPat, gistId } = STATE.settings;
+  if (!githubPat || !gistId) {
+    showToast("Merge Failed", "Credentials not configured.", "error");
+    return;
+  }
+
+  const loaderToastId = showToast("Merging Databases", "Fetching and merging databases...", "loading");
+  try {
+    const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `token ${githubPat}`,
+        "Accept": "application/vnd.github.v3+json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API returned ${response.status}`);
+    }
+
+    const gistData = await response.json();
+    const fileName = "grail_tracker_watches.json";
+    let remoteWatches = [];
+
+    if (gistData.files && gistData.files[fileName]) {
+      const remoteData = JSON.parse(gistData.files[fileName].content);
+      remoteWatches = remoteData.watches || [];
+    }
+
+    const localWatches = STATE.watches || [];
+    const mergedMap = new Map();
+
+    const getWatchKey = (w) => {
+      if (w.id) return String(w.id);
+      return `${w.brand.toLowerCase()}_${w.model.toLowerCase()}_${(w.ref || "").toLowerCase()}`;
+    };
+
+    remoteWatches.forEach(w => {
+      mergedMap.set(getWatchKey(w), w);
+    });
+
+    localWatches.forEach(w => {
+      mergedMap.set(getWatchKey(w), w);
+    });
+
+    const mergedWatches = Array.from(mergedMap.values());
+
+    STATE.watches = mergedWatches;
+    STATE.lastUpdated = Date.now();
+    
+    const serialized = JSON.stringify({
+      watches: STATE.watches,
+      lastUpdated: STATE.lastUpdated,
+      settings: STATE.settings,
+      viewMode: STATE.viewMode
+    });
+    localStorage.setItem(STORAGE_KEY, serialized);
+
+    await pushStateToGist(githubPat, gistId);
+    
+    dismissToast(loaderToastId);
+    showToast("Merge Successful", `Merged databases. Total watches: ${mergedWatches.length}`, "success");
+    renderWatches();
+    updateDiagnosticsUI();
+    updateSyncUIStatus("online");
+  } catch (error) {
+    console.error("Merge failed:", error);
+    dismissToast(loaderToastId);
+    showToast("Merge Failed", error.message || "Failed to merge databases", "error");
   }
 }
