@@ -307,7 +307,7 @@ function loadLocalState() {
     try {
       const parsed = JSON.parse(cached);
       STATE.watches = parsed.watches || [];
-      STATE.lastUpdated = parsed.lastUpdated || Date.now();
+      STATE.lastUpdated = parsed.lastUpdated || 0;
       const loadedSettings = parsed.settings || {};
       STATE.settings = {
         githubPat: loadedSettings.githubPat || "",
@@ -321,7 +321,7 @@ function loadLocalState() {
     }
   } else {
     STATE.watches = [];
-    STATE.lastUpdated = Date.now();
+    STATE.lastUpdated = 0;
   }
   
   // Apply View Mode
@@ -333,8 +333,10 @@ function loadLocalState() {
   }
 }
 
-function saveLocalState() {
-  STATE.lastUpdated = Date.now();
+function saveLocalState(updateTimestamp = false) {
+  if (updateTimestamp) {
+    STATE.lastUpdated = Date.now();
+  }
   const serialized = JSON.stringify({
     watches: STATE.watches,
     lastUpdated: STATE.lastUpdated,
@@ -985,8 +987,8 @@ function handleSaveWatch(e) {
     STATE.watches.push(newWatch);
     showToast("Watch Added", `${brand} ${model} added to wishlist.`, "success");
   }
-
-  saveLocalState();
+  
+  saveLocalState(true);
   renderWatches();
   closeModal(DOM.modalWatch);
 }
@@ -1001,7 +1003,7 @@ function deleteWatch(watchId) {
   STATE.watches = STATE.watches.filter(w => w.id != watchId);
   showToast("Watch Removed", "Item deleted from cache.", "info");
   
-  saveLocalState();
+  saveLocalState(true);
   renderWatches();
   
   // If inspect modal was open for this watch, close it
@@ -1058,7 +1060,7 @@ function loadDemoCollection() {
     if (!w.id) w.id = Date.now() + index;
   });
 
-  saveLocalState();
+  saveLocalState(true);
   renderWatches();
   showToast("Demo Loaded", "Populated 9 iconic watches.", "success");
 }
