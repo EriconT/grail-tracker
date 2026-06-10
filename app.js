@@ -589,6 +589,7 @@ async function performAutocompleteSearch(query) {
   });
 
   const { googleApiKey, googleCxId } = STATE.settings;
+  let googleSearchSuccess = false;
 
   // 2. Query Google Custom Search (if key & cx are configured)
   if (googleApiKey && googleCxId) {
@@ -596,6 +597,7 @@ async function performAutocompleteSearch(query) {
       const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleApiKey)}&cx=${encodeURIComponent(googleCxId)}&q=${encodeURIComponent(query + " watch price")}`;
       const response = await fetch(googleUrl);
       if (response.ok) {
+        googleSearchSuccess = true;
         const data = await response.json();
         const items = data.items || [];
         
@@ -625,6 +627,9 @@ async function performAutocompleteSearch(query) {
             }
           });
         });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Google Custom Search API error:", errorData.error?.message || response.statusText);
       }
     } catch (error) {
       console.error("Google Custom Search failed:", error);
@@ -632,48 +637,51 @@ async function performAutocompleteSearch(query) {
   }
 
   // 3. Query Wikipedia API as a fallback/addition (using the generator for full-text and immediate properties)
-  // Only query Wikipedia if we have fewer than 5 matches or Google search isn't enabled
-  if (matches.length < 5) {
-    try {
-      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800&pilimit=5&exintro=1&explaintext=1&exlimit=5&formatversion=2`;
-      const response = await fetch(wikiUrl);
-      if (response.ok) {
-        const data = await response.json();
-        const pages = data.query?.pages || [];
-        
-        pages.forEach(page => {
-          // Exclude duplicate titles
-          const alreadyMatched = matches.some(m => m.title.toLowerCase() === page.title.toLowerCase());
-          if (!alreadyMatched) {
-            const brand = guessBrandFromTitle(page.title);
-            const model = guessModelFromTitle(page.title, brand);
-            const specs = parseWikiExtract(page.extract || "");
-            const image = page.original?.source || page.thumbnail?.source || "";
-            
-            matches.push({
-              type: "wiki",
-              title: page.title,
-              subtitle: page.extract ? page.extract.substring(0, 70) + "..." : "Wikipedia Article",
-              data: {
-                brand: brand,
-                model: model,
-                ref: "",
-                price: "",
-                dial: specs.dial,
-                lug: specs.lug,
-                movement: specs.movement,
-                strap: specs.strap,
-                image: image,
-                notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
-                priority: 3,
-                status: "wished"
-              }
-            });
-          }
-        });
+  // Only query Wikipedia if Google Custom Search is NOT configured, or if it failed to execute successfully
+  const isGoogleConfigured = !!(googleApiKey && googleCxId);
+  if (!isGoogleConfigured || !googleSearchSuccess) {
+    if (matches.length < 5) {
+      try {
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800&pilimit=5&exintro=1&explaintext=1&exlimit=5&formatversion=2`;
+        const response = await fetch(wikiUrl);
+        if (response.ok) {
+          const data = await response.json();
+          const pages = data.query?.pages || [];
+          
+          pages.forEach(page => {
+            // Exclude duplicate titles
+            const alreadyMatched = matches.some(m => m.title.toLowerCase() === page.title.toLowerCase());
+            if (!alreadyMatched) {
+              const brand = guessBrandFromTitle(page.title);
+              const model = guessModelFromTitle(page.title, brand);
+              const specs = parseWikiExtract(page.extract || "");
+              const image = page.original?.source || page.thumbnail?.source || "";
+              
+              matches.push({
+                type: "wiki",
+                title: page.title,
+                subtitle: page.extract ? page.extract.substring(0, 70) + "..." : "Wikipedia Article",
+                data: {
+                  brand: brand,
+                  model: model,
+                  ref: "",
+                  price: "",
+                  dial: specs.dial,
+                  lug: specs.lug,
+                  movement: specs.movement,
+                  strap: specs.strap,
+                  image: image,
+                  notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
+                  priority: 3,
+                  status: "wished"
+                }
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Wikipedia search failed:", error);
       }
-    } catch (error) {
-      console.error("Wikipedia search failed:", error);
     }
   }
 
@@ -1262,6 +1270,28 @@ function handleSaveSettings() {
     syncWithGist();
   } else {
     updateSyncUIStatus("offline");
+  }
+
+  // If Google Custom Search keys are entered, test them immediately
+  if (googleKey && googleCx) {
+    testGoogleSearch(googleKey, googleCx);
+  }
+}
+
+async function testGoogleSearch(key, cx) {
+  try {
+    const testUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=test&num=1`;
+    const res = await fetch(testUrl);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const errMsg = errorData.error?.message || `HTTP error ${res.status}`;
+      showToast("Google Search Config Error", `Verification failed: ${errMsg}`, "error");
+    } else {
+      showToast("Google Search Connected", "API Key and Search Engine verified successfully.", "success");
+    }
+  } catch (error) {
+    console.error("Google Search verify connection failed:", error);
+    showToast("Google Search Error", "Could not connect to Google Search API. Check network.", "error");
   }
 }
 
