@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grail Tracker — Admire Your Dream Collection</title>
+  <!-- Google Fonts: Outfit (headings) and Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons for clean SVG representation -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- App Container -->
+  <div class="app-layout">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <i data-lucide="compass" class="logo-icon"></i>
+        <h1>Grail <span class="accent-text">Tracker</span></h1>
+      </div>
+      
+      <!-- Stats Bar (Summary Cards) -->
+      <div class="header-stats">
+        <div class="stat-badge tooltip" title="Total estimated cost of all watches in your list">
+          <i data-lucide="dollar-sign"></i>
+          <div class="stat-content">
+            <span class="stat-label">Total Value</span>
+            <span class="stat-value" id="stat-total-value">$0</span>
+          </div>
+        </div>
+        
+        <div class="stat-badge">
+          <i data-lucide="watch"></i>
+          <div class="stat-content">
+            <span class="stat-label">Wishlist</span>
+            <span class="stat-value" id="stat-count">0 Watches</span>
+          </div>
+        </div>
+        
+        <div class="stat-badge id-next-target tooltip" title="Your highest priority target watch">
+          <i data-lucide="target" class="target-icon"></i>
+          <div class="stat-content">
+            <span class="stat-label">Next Target</span>
+            <span class="stat-value" id="stat-next-target">None Set</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <button id="btn-add-watch" class="btn btn-primary">
+          <i data-lucide="plus"></i>
+          <span>Add Watch</span>
+        </button>
+        <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
+          <i data-lucide="settings"></i>
+        </button>
+        <button id="btn-theme-toggle" class="btn btn-icon" title="Toggle Theme">
+          <i data-lucide="moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sync Alert bar (if token not set or last sync details) -->
+    <div class="sync-status-bar" id="sync-status-bar">
+      <span id="sync-status-text">
+        <i data-lucide="cloud-off"></i> Offline Mode (Local Storage only). Configure GitHub Gist for cross-device syncing.
+      </span>
+      <button id="btn-sync-now" class="btn-link" style="display:none;">
+        <i data-lucide="refresh-cw"></i> Sync Now
+      </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Filter and Sort Controls -->
+      <div class="controls-bar">
+        <div class="search-box">
+          <i data-lucide="search"></i>
+          <input type="text" id="search-filter" placeholder="Filter wishlist by name, brand, reference...">
+        </div>
+        <div class="filter-actions">
+          <select id="sort-by">
+            <option value="priority-desc">Priority: High to Low</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="brand-asc">Brand: A to Z</option>
+            <option value="date-added">Date Added</option>
+          </select>
+          <div class="view-toggles">
+            <button id="view-grid" class="btn-icon active" title="Grid View">
+              <i data-lucide="layout-grid"></i>
+            </button>
+            <button id="view-list" class="btn-icon" title="List View">
+              <i data-lucide="list"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Watch Grid/List Container -->
+      <div class="watches-container grid-view" id="watches-container">
+        <!-- Watches injected dynamically via JavaScript -->
+        
+        <!-- Skeleton Loaders (shown during initial sync) -->
+        <div class="watch-card skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-text title"></div>
+          <div class="skeleton-text subtitle"></div>
+          <div class="skeleton-text stats"></div>
+        </div>
+        <div class="watch-card skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-text title"></div>
+          <div class="skeleton-text subtitle"></div>
+          <div class="skeleton-text stats"></div>
+        </div>
+        <div class="watch-card skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="skeleton-text title"></div>
+          <div class="skeleton-text subtitle"></div>
+          <div class="skeleton-text stats"></div>
+        </div>
+      </div>
+
+      <!-- Empty State View -->
+      <div class="empty-state" id="empty-state" style="display: none;">
+        <div class="empty-illustration">
+          <i data-lucide="compass" class="compass-pulse"></i>
+        </div>
+        <h2>Start Your Horological Journey</h2>
+        <p>Your wishlist is currently empty. Add watches you dream of owning one day and admire them here.</p>
+        <div class="empty-actions">
+          <button id="btn-empty-add" class="btn btn-primary">
+            <i data-lucide="plus"></i> Add Your First Watch
+          </button>
+          <button id="btn-load-demo" class="btn btn-outline">
+            <i data-lucide="sparkles"></i> Load Demo Collection
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Grail Tracker. Designed with watch passion.</p>
+      <div class="footer-links">
+        <span class="sync-indicator-dot" id="sync-dot"></span>
+        <span id="footer-sync-msg">Local Storage Active</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Add/Edit Watch Modal -->
+  <div class="modal-backdrop" id="modal-watch">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="modal-watch-title">Add Dream Watch</h2>
+        <button class="btn-close-modal" id="btn-close-watch-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        
+        <!-- Autocomplete Search Input -->
+        <div class="form-group autocomplete-group">
+          <label for="watch-search-input">Search & Autopopulate Watch Details</label>
+          <div class="search-input-wrapper">
+            <i data-lucide="search" class="search-field-icon"></i>
+            <input type="text" id="watch-search-input" placeholder="Type a watch name (e.g. Rolex Submariner, Speedmaster)..." autocomplete="off">
+            <div id="search-spinner" class="spinner" style="display: none;"></div>
+          </div>
+          <p class="form-tip">Searches our curated catalog and Wikipedia dynamically to autofill details, specifications, and images.</p>
+          
+          <!-- Autocomplete Dropdown Options -->
+          <div class="autocomplete-dropdown" id="autocomplete-dropdown" style="display: none;">
+            <!-- Matches populated dynamically -->
+          </div>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- Watch Details Form -->
+        <form id="watch-form" class="watch-form">
+          <input type="hidden" id="watch-id">
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="watch-brand">Brand <span class="required">*</span></label>
+              <input type="text" id="watch-brand" required placeholder="e.g. Omega">
+            </div>
+            <div class="form-group">
+              <label for="watch-model">Model Name <span class="required">*</span></label>
+              <input type="text" id="watch-model" required placeholder="e.g. Speedmaster Professional">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="watch-ref">Reference Number</label>
+              <input type="text" id="watch-ref" placeholder="e.g. 310.30.42.50.01.002">
+            </div>
+            <div class="form-group">
+              <label for="watch-price">Target Price (USD) <span class="required">*</span></label>
+              <div class="price-input-wrapper">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="watch-price" required min="0" placeholder="7600">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="watch-dial">Dial Size (mm)</label>
+              <input type="text" id="watch-dial" placeholder="e.g. 42mm">
+            </div>
+            <div class="form-group">
+              <label for="watch-lug">Lug-to-Lug (mm)</label>
+              <input type="text" id="watch-lug" placeholder="e.g. 47.2mm">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="watch-movement">Movement Type</label>
+              <input type="text" id="watch-movement" placeholder="e.g. Manual Caliber 3861">
+            </div>
+            <div class="form-group">
+              <label for="watch-strap">Strap / Bracelet</label>
+              <input type="text" id="watch-strap" placeholder="e.g. Brushed Steel Bracelet">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="watch-image">Watch Image URL</label>
+            <input type="url" id="watch-image" placeholder="https://images.unsplash.com/...">
+            <p class="form-tip">Provide a direct link to a watch image. You can also paste any web image link.</p>
+            
+            <!-- Image Preview Box -->
+            <div class="image-preview-box" id="image-preview-container">
+              <div class="no-preview-placeholder">
+                <i data-lucide="image"></i>
+                <span>Image Preview</span>
+              </div>
+              <img id="image-preview" src="" alt="Watch Preview" style="display: none;">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="watch-priority">Acquisition Priority</label>
+              <select id="watch-priority">
+                <option value="1">Level 1: Someday / Casual Interest</option>
+                <option value="2">Level 2: Future Target</option>
+                <option value="3">Level 3: High Priority</option>
+                <option value="4">Level 4: Next Purchase Target</option>
+                <option value="5">Level 5: The Ultimate Grail</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="watch-status">Status</label>
+              <select id="watch-status">
+                <option value="wished">Dreaming / Wishlist</option>
+                <option value="acquired">Acquired! 🎉</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="watch-notes">Daydream Journal & Notes</label>
+            <textarea id="watch-notes" rows="3" placeholder="Why do you love this watch? What milestones or occasions are you linking to its acquisition?"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" id="btn-cancel-watch">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-watch">Save to Wishlist</button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings & Sync Modal -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2>Sync & App Settings</h2>
+        <button class="btn-close-modal" id="btn-close-settings-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        
+        <!-- Sync Description -->
+        <div class="sync-intro">
+          <i data-lucide="cloud-lightning" class="sync-intro-icon"></i>
+          <div>
+            <h3>Cross-Device Gist Sync</h3>
+            <p>Sync your watch wishlist across multiple browsers, phones, and PCs using a free, private GitHub Gist.</p>
+          </div>
+        </div>
+
+        <hr class="form-divider">
+
+        <div class="form-group">
+          <label for="settings-pat">GitHub Personal Access Token (PAT)</label>
+          <input type="password" id="settings-pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxx">
+          <p class="form-tip">Create a Classic or Fine-grained Personal Access Token with <b>gists</b> read/write scope.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="settings-gist-id">Gist ID</label>
+          <input type="text" id="settings-gist-id" placeholder="e.g. 5d57b54fa3c79a97bc187b419fb838ee">
+          <p class="form-tip">Paste an existing Gist ID, or leave blank and click "Create New Gist" to generate one automatically.</p>
+        </div>
+
+        <div class="form-row-settings">
+          <div class="form-group-checkbox">
+            <input type="checkbox" id="settings-auto-sync" checked>
+            <label for="settings-auto-sync">Enable Auto-Sync (Syncs on startup and saves)</label>
+          </div>
+        </div>
+
+        <div class="settings-actions-group">
+          <button id="btn-save-settings" class="btn btn-primary">
+            <i data-lucide="save"></i> Save Settings
+          </button>
+          <button id="btn-create-gist" class="btn btn-outline">
+            <i data-lucide="git-branch"></i> Create Private Gist for Me
+          </button>
+          <button id="btn-force-sync" class="btn btn-secondary">
+            <i data-lucide="refresh-cw" class="spin-icon"></i> Test & Sync Now
+          </button>
+        </div>
+
+        <hr class="form-divider">
+
+        <h3>Data Portability & Maintenance</h3>
+        <p class="form-tip" style="margin-bottom: 1rem;">Export your list as a file or clear local settings.</p>
+        
+        <div class="settings-actions-group">
+          <button id="btn-export-json" class="btn btn-outline">
+            <i data-lucide="download"></i> Export JSON Backup
+          </button>
+          <label for="import-json-file" class="btn btn-outline btn-file-label">
+            <i data-lucide="upload"></i> Import JSON Backup
+            <input type="file" id="import-json-file" accept=".json" style="display: none;">
+          </label>
+          <button id="btn-clear-all" class="btn btn-danger">
+            <i data-lucide="trash-2"></i> Wipe Local Cache
+          </button>
+        </div>
+
+        <div class="instructions-card">
+          <h4><i data-lucide="help-circle"></i> Quick Setup Guide</h4>
+          <ol>
+            <li>Go to <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">GitHub Token Settings</a>.</li>
+            <li>Generate a classic token named "Grail Tracker" with the <b>gist</b> permission checked.</li>
+            <li>Copy the token and paste it in the PAT field above.</li>
+            <li>Click <b>Create Private Gist for Me</b>. The app will automatically create a secure repository for your collection and save the ID.</li>
+            <li>Click <b>Save Settings</b>. You're fully synced! Load this app on your phone, paste the same PAT and Gist ID, and see your collection in real-time.</li>
+          </ol>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Watch Inspect/Details Drawer Modal -->
+  <div class="modal-backdrop" id="modal-inspect">
+    <div class="modal-container inspect-container">
+      <div class="modal-header">
+        <div class="inspect-title-group">
+          <span class="inspect-brand" id="inspect-brand">Omega</span>
+          <h2 id="inspect-model">Speedmaster Moonwatch</h2>
+          <span class="inspect-ref" id="inspect-ref">Ref. 310.30.42.50.01.002</span>
+        </div>
+        <button class="btn-close-modal" id="btn-close-inspect">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body inspect-body">
+        
+        <div class="inspect-main-layout">
+          
+          <div class="inspect-image-column">
+            <div class="inspect-image-wrapper">
+              <img id="inspect-image" src="" alt="Watch Image">
+              <div class="inspect-priority-ribbon" id="inspect-priority-badge">Grail</div>
+            </div>
+            <div class="inspect-price-tag" id="inspect-price">$7,600</div>
+          </div>
+          
+          <div class="inspect-details-column">
+            <h3>Specifications</h3>
+            
+            <div class="specs-table">
+              <div class="spec-row">
+                <span class="spec-name">Brand</span>
+                <span class="spec-desc" id="inspect-spec-brand">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Model</span>
+                <span class="spec-desc" id="inspect-spec-model">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Reference #</span>
+                <span class="spec-desc" id="inspect-spec-ref">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Dial Size</span>
+                <span class="spec-desc" id="inspect-spec-dial">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Lug-to-Lug</span>
+                <span class="spec-desc" id="inspect-spec-lug">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Movement</span>
+                <span class="spec-desc" id="inspect-spec-movement">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Strap / Bracelet</span>
+                <span class="spec-desc" id="inspect-spec-strap">-</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-name">Wishlist Status</span>
+                <span class="spec-desc" id="inspect-spec-status">-</span>
+              </div>
+            </div>
+
+            <div class="inspect-notes-section">
+              <h3>Daydream Journal</h3>
+              <p id="inspect-notes">Why I want this watch details go here...</p>
+            </div>
+
+            <div class="inspect-footer-actions">
+              <button class="btn btn-outline" id="btn-inspect-edit">
+                <i data-lucide="edit-3"></i> Edit Watch
+              </button>
+              <button class="btn btn-danger-outline" id="btn-inspect-delete">
+                <i data-lucide="trash-2"></i> Delete
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container">
+    <!-- Toast elements will slide in here dynamically -->
+  </div>
+
+  <!-- App Script Entry -->
+  <script src="app.js"></script>
+</body>
+</html>
