@@ -70,47 +70,10 @@ To load your watches on a new device (like your phone):
 
 ---
 
-## 🔍 How to Setup Google Autocomplete Search (Optional)
-
-> [!WARNING]
-> **Google Custom Search API Restrictions (2026)**: Google has officially closed the Custom Search JSON API to all new projects and accounts ahead of its full discontinuation on January 1, 2027. If you create a new Google Cloud project, Google will return a `permission denied / no access` error. 
-> 
-> We recommend using the default, keyless **Wikipedia Search**, which is fully integrated, free, and works out-of-the-box without any API keys or configuration!
-
-If you have an older, existing Google Cloud project with prior access to the Custom Search JSON API, you can enable it in settings:
-
-### Step 1: Get a Google Custom Search API Key
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a free project (no billing is required for low-volume personal usage).
-3. Search for and enable the **Custom Search API**.
-4. Go to **APIs & Services** -> **Credentials**, click **Create Credentials**, and choose **API Key**. Copy your generated key.
-
-### Step 2: Get a Search Engine ID (CX)
-1. Go to the [Google Programmable Search Engine Console](https://programmablesearchengine.google.com/about/).
-2. Click **Add** to create a new search engine.
-3. Under *What to search*, Google no longer allows searching the entire web for new search engines. Instead, you must specify the websites you want to search. We recommend adding these top watch websites (you can add up to 50):
-   - `chrono24.com`
-   - `hodinkee.com`
-   - `wikipedia.org`
-   - `watchbase.com`
-   - `teddybaldassarre.com`
-   - `ablogtowatch.com`
-   - `fratellowatches.com`
-   - `watchfinder.com`
-4. Give it a name (e.g. `Watch Search`) and click **Create**.
-5. Go to your search engine settings, find the **Search Engine ID** (or CX ID), and copy it.
-
-### Step 3: Paste Keys into settings
-- Open the settings gear in your app, paste the API Key and CX ID into their respective fields, and click **Save Settings**. 
-- Now, when you add a watch, typing in the search bar queries Google, fetching actual retail prices and live product image previews!
-
----
-
 ## Technical Details & Local Development
 - Built with standard **HTML5**, **Vanilla CSS**, and **ES6 JavaScript**.
 - Icons powered by **Lucide Icons**.
 - Fonts loaded via **Google Fonts** (Inter and Outfit).
 - Offline capabilities using standard browser `LocalStorage`.
 - Wikipedia queries use official cross-origin resource sharing (`origin=*`) APIs.
-- Google Search calls use the official `customsearch/v1` API directly from the client.
 

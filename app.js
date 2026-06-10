@@ -139,8 +139,6 @@ let STATE = {
   settings: {
     githubPat: "",
     gistId: "",
-    googleApiKey: "",
-    googleCxId: "",
     autoSync: true
   },
   theme: "auto", // 'auto', 'light', or 'dark'
@@ -206,10 +204,7 @@ const DOM = {
   // Settings fields
   settingsPat: document.getElementById("settings-pat"),
   settingsGistId: document.getElementById("settings-gist-id"),
-  settingsGoogleKey: document.getElementById("settings-google-key"),
-  settingsGoogleCx: document.getElementById("settings-google-cx"),
   settingsAutoSync: document.getElementById("settings-auto-sync"),
-  searchFormTip: document.getElementById("search-form-tip"),
   btnSaveSettings: document.getElementById("btn-save-settings"),
   btnCreateGist: document.getElementById("btn-create-gist"),
   btnForceSync: document.getElementById("btn-force-sync"),
@@ -320,8 +315,6 @@ function loadLocalState() {
       STATE.settings = {
         githubPat: loadedSettings.githubPat || "",
         gistId: loadedSettings.gistId || "",
-        googleApiKey: loadedSettings.googleApiKey || "",
-        googleCxId: loadedSettings.googleCxId || "",
         autoSync: loadedSettings.autoSync !== false
       };
       STATE.viewMode = parsed.viewMode || "grid";
@@ -341,7 +334,6 @@ function loadLocalState() {
     DOM.viewGrid.classList.remove("active");
     DOM.viewList.classList.add("active");
   }
-  updateSearchTip();
 }
 
 function saveLocalState() {
@@ -551,16 +543,7 @@ function updateSyncUIStatus(status) {
   lucide.createIcons();
 }
 
-function updateSearchTip() {
-  const { googleApiKey, googleCxId } = STATE.settings;
-  if (DOM.searchFormTip) {
-    if (googleApiKey && googleCxId) {
-      DOM.searchFormTip.textContent = "Searches our curated catalog and Google Custom Search dynamically to autofill details, specifications, and images.";
-    } else {
-      DOM.searchFormTip.textContent = "Searches our curated catalog and Wikipedia dynamically to autofill details, specifications, and images.";
-    }
-  }
-}
+
 
 // 8. Search Autocomplete Logic (Wikipedia + Curated Catalog)
 let autocompleteTimeout = null;
@@ -601,113 +584,48 @@ async function performAutocompleteSearch(query) {
     }
   });
 
-  const { googleApiKey, googleCxId } = STATE.settings;
-  let googleSearchSuccess = false;
-
-  // 2. Query Google Custom Search (if key & cx are configured)
-  if (googleApiKey && googleCxId) {
+  // 2. Query Wikipedia API as a fallback/addition (using the generator for full-text and immediate properties)
+  if (matches.length < 5) {
     try {
-      const googleUrl = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleApiKey)}&cx=${encodeURIComponent(googleCxId)}&q=${encodeURIComponent(query + " watch price")}`;
-      const response = await fetch(googleUrl);
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800&pilimit=5&exintro=1&explaintext=1&exlimit=5&formatversion=2`;
+      const response = await fetch(wikiUrl);
       if (response.ok) {
-        googleSearchSuccess = true;
         const data = await response.json();
-        const items = data.items || [];
+        const pages = data.query?.pages || [];
         
-        items.forEach(item => {
-          const brand = guessBrandFromTitle(item.title);
-          const model = guessModelFromTitle(item.title, brand);
-          const price = extractPriceFromItem(item);
-          const image = extractImageFromItem(item);
-          
-          matches.push({
-            type: "google",
-            title: `${brand} ${model}`.trim() || item.title,
-            subtitle: price ? `$${price.toLocaleString()} — ${item.displayLink}` : item.displayLink,
-            data: {
-              brand: brand,
-              model: model,
-              ref: "",
-              price: price,
-              dial: "",
-              lug: "",
-              movement: "",
-              strap: "",
-              image: image,
-              notes: item.snippet || "",
-              priority: 3,
-              status: "wished"
-            }
-          });
-        });
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errMsg = errorData.error?.message || `HTTP error ${response.status}`;
-        console.error("Google Custom Search API error:", errMsg, errorData);
-        matches.push({
-          type: "google-error",
-          title: "Google Search Config Error",
-          subtitle: `${errMsg} (Click to open settings)`,
-          data: null
+        pages.forEach(page => {
+          // Exclude duplicate titles
+          const alreadyMatched = matches.some(m => m.title.toLowerCase() === page.title.toLowerCase());
+          if (!alreadyMatched) {
+            const brand = guessBrandFromTitle(page.title);
+            const model = guessModelFromTitle(page.title, brand);
+            const specs = parseWikiExtract(page.extract || "");
+            const image = page.original?.source || page.thumbnail?.source || "";
+            
+            matches.push({
+              type: "wiki",
+              title: page.title,
+              subtitle: page.extract ? page.extract.substring(0, 70) + "..." : "Wikipedia Article",
+              data: {
+                brand: brand,
+                model: model,
+                ref: "",
+                price: "",
+                dial: specs.dial,
+                lug: specs.lug,
+                movement: specs.movement,
+                strap: specs.strap,
+                image: image,
+                notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
+                priority: 3,
+                status: "wished"
+              }
+            });
+          }
         });
       }
     } catch (error) {
-      console.error("Google Custom Search failed:", error);
-      matches.push({
-        type: "google-error",
-        title: "Google Search Connection Error",
-        subtitle: `${error.message || "Network request failed"} (Click to open settings)`,
-        data: null
-      });
-    }
-  }
-
-  // 3. Query Wikipedia API as a fallback/addition (using the generator for full-text and immediate properties)
-  // Only query Wikipedia if Google Custom Search is NOT configured, or if it failed to execute successfully
-  const isGoogleConfigured = !!(googleApiKey && googleCxId);
-  if (!isGoogleConfigured || !googleSearchSuccess) {
-    if (matches.length < 5) {
-      try {
-        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800&pilimit=5&exintro=1&explaintext=1&exlimit=5&formatversion=2`;
-        const response = await fetch(wikiUrl);
-        if (response.ok) {
-          const data = await response.json();
-          const pages = data.query?.pages || [];
-          
-          pages.forEach(page => {
-            // Exclude duplicate titles
-            const alreadyMatched = matches.some(m => m.title.toLowerCase() === page.title.toLowerCase());
-            if (!alreadyMatched) {
-              const brand = guessBrandFromTitle(page.title);
-              const model = guessModelFromTitle(page.title, brand);
-              const specs = parseWikiExtract(page.extract || "");
-              const image = page.original?.source || page.thumbnail?.source || "";
-              
-              matches.push({
-                type: "wiki",
-                title: page.title,
-                subtitle: page.extract ? page.extract.substring(0, 70) + "..." : "Wikipedia Article",
-                data: {
-                  brand: brand,
-                  model: model,
-                  ref: "",
-                  price: "",
-                  dial: specs.dial,
-                  lug: specs.lug,
-                  movement: specs.movement,
-                  strap: specs.strap,
-                  image: image,
-                  notes: page.extract ? page.extract.substring(0, 300) + "... (Source: Wikipedia)" : "",
-                  priority: 3,
-                  status: "wished"
-                }
-              });
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Wikipedia search failed:", error);
-      }
+      console.error("Wikipedia search failed:", error);
     }
   }
 
@@ -811,9 +729,7 @@ function displayAutocompleteResults(results) {
     item.className = "autocomplete-item";
     
     let imageHtml = "";
-    if (res.type === "google-error") {
-      imageHtml = `<div class="autocomplete-item-img" style="display:flex;align-items:center;justify-content:center;background:var(--danger-bg)"><i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--danger);"></i></div>`;
-    } else if (res.data && res.data.image) {
+    if (res.data && res.data.image) {
       imageHtml = `<img src="${res.data.image}" class="autocomplete-item-img" alt="Watch icon" onerror="this.style.display='none'">`;
     } else {
       imageHtml = `<div class="autocomplete-item-img" style="display:flex;align-items:center;justify-content:center;background:var(--border-color)"><i data-lucide="search" style="width:16px;height:16px;color:var(--text-tertiary);"></i></div>`;
@@ -837,10 +753,6 @@ function displayAutocompleteResults(results) {
 
 async function selectAutocompleteItem(res) {
   DOM.autocompleteDropdown.style.display = "none";
-  if (res.type === "google-error") {
-    openSettingsModal();
-    return;
-  }
   DOM.watchSearchInput.value = res.title;
   
   const w = res.data;
@@ -1273,8 +1185,6 @@ function setupEventListeners() {
 function openSettingsModal() {
   DOM.settingsPat.value = STATE.settings.githubPat || "";
   DOM.settingsGistId.value = STATE.settings.gistId || "";
-  DOM.settingsGoogleKey.value = STATE.settings.googleApiKey || "";
-  DOM.settingsGoogleCx.value = STATE.settings.googleCxId || "";
   DOM.settingsAutoSync.checked = STATE.settings.autoSync;
   DOM.modalSettings.classList.add("active");
 }
@@ -1282,19 +1192,14 @@ function openSettingsModal() {
 function handleSaveSettings() {
   const pat = DOM.settingsPat.value.trim();
   const gistId = DOM.settingsGistId.value.trim();
-  const googleKey = DOM.settingsGoogleKey.value.trim();
-  const googleCx = DOM.settingsGoogleCx.value.trim();
   const autoSync = DOM.settingsAutoSync.checked;
   
   STATE.settings = {
     githubPat: pat,
     gistId: gistId,
-    googleApiKey: googleKey,
-    googleCxId: googleCx,
     autoSync: autoSync
   };
   saveLocalState();
-  updateSearchTip();
   
   showToast("Settings Saved", "Preferences updated in local storage.", "success");
   closeModal(DOM.modalSettings);
@@ -1303,28 +1208,6 @@ function handleSaveSettings() {
     syncWithGist();
   } else {
     updateSyncUIStatus("offline");
-  }
-
-  // If Google Custom Search keys are entered, test them immediately
-  if (googleKey && googleCx) {
-    testGoogleSearch(googleKey, googleCx);
-  }
-}
-
-async function testGoogleSearch(key, cx) {
-  try {
-    const testUrl = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=test&num=1`;
-    const res = await fetch(testUrl);
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const errMsg = errorData.error?.message || `HTTP error ${res.status}`;
-      showToast("Google Search Config Error", `Verification failed: ${errMsg}`, "error");
-    } else {
-      showToast("Google Search Connected", "API Key and Search Engine verified successfully.", "success");
-    }
-  } catch (error) {
-    console.error("Google Search verify connection failed:", error);
-    showToast("Google Search Error", "Could not connect to Google Search API. Check network.", "error");
   }
 }
 
