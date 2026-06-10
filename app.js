@@ -352,7 +352,7 @@ function saveLocalState(updateTimestamp = false) {
 }
 
 // 7. Watch Database Syncing Engine (GitHub Gist API)
-async function syncWithGist(isSilentPush = false) {
+async function syncWithGist(isSilentPush = false, forcePull = false) {
   const { githubPat, gistId } = STATE.settings;
   if (!githubPat || !gistId) {
     updateSyncUIStatus("offline");
@@ -388,7 +388,7 @@ async function syncWithGist(isSilentPush = false) {
       const remoteTimestamp = remoteData.lastUpdated || 0;
       const localTimestamp = STATE.lastUpdated || 0;
 
-      if (remoteTimestamp > localTimestamp) {
+      if (forcePull || remoteTimestamp > localTimestamp) {
         // Remote is newer - Pull changes
         STATE.watches = remoteData.watches || [];
         STATE.lastUpdated = remoteTimestamp;
@@ -1103,7 +1103,7 @@ function setupEventListeners() {
   // Settings Modals Actions
   DOM.btnSaveSettings.onclick = handleSaveSettings;
   DOM.btnCreateGist.onclick = () => createNewPrivateGist(DOM.settingsPat.value.trim());
-  DOM.btnForceSync.onclick = () => syncWithGist();
+  DOM.btnForceSync.onclick = () => syncWithGist(false, true);
   DOM.btnExportJson.onclick = exportBackup;
   DOM.importJsonFile.onchange = importBackup;
   
@@ -1112,7 +1112,7 @@ function setupEventListeners() {
     if (confirmed) {
       localStorage.removeItem(STORAGE_KEY);
       STATE.watches = [];
-      STATE.lastUpdated = Date.now();
+      STATE.lastUpdated = 0;
       renderWatches();
       showToast("Local Cache Cleared", "Wiped all cached watch data.", "info");
       closeModal(DOM.modalSettings);
