@@ -607,7 +607,7 @@ async function performAutocompleteSearch(query) {
   // 2. Query Google Custom Search (if key & cx are configured)
   if (googleApiKey && googleCxId) {
     try {
-      const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleApiKey)}&cx=${encodeURIComponent(googleCxId)}&q=${encodeURIComponent(query + " watch price")}`;
+      const googleUrl = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(googleApiKey)}&cx=${encodeURIComponent(googleCxId)}&q=${encodeURIComponent(query + " watch price")}`;
       const response = await fetch(googleUrl);
       if (response.ok) {
         googleSearchSuccess = true;
@@ -642,10 +642,23 @@ async function performAutocompleteSearch(query) {
         });
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Google Custom Search API error:", errorData.error?.message || response.statusText);
+        const errMsg = errorData.error?.message || `HTTP error ${response.status}`;
+        console.error("Google Custom Search API error:", errMsg, errorData);
+        matches.push({
+          type: "google-error",
+          title: "Google Search Config Error",
+          subtitle: `${errMsg} (Click to open settings)`,
+          data: null
+        });
       }
     } catch (error) {
       console.error("Google Custom Search failed:", error);
+      matches.push({
+        type: "google-error",
+        title: "Google Search Connection Error",
+        subtitle: `${error.message || "Network request failed"} (Click to open settings)`,
+        data: null
+      });
     }
   }
 
@@ -798,7 +811,9 @@ function displayAutocompleteResults(results) {
     item.className = "autocomplete-item";
     
     let imageHtml = "";
-    if (res.data && res.data.image) {
+    if (res.type === "google-error") {
+      imageHtml = `<div class="autocomplete-item-img" style="display:flex;align-items:center;justify-content:center;background:var(--danger-bg)"><i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--danger);"></i></div>`;
+    } else if (res.data && res.data.image) {
       imageHtml = `<img src="${res.data.image}" class="autocomplete-item-img" alt="Watch icon" onerror="this.style.display='none'">`;
     } else {
       imageHtml = `<div class="autocomplete-item-img" style="display:flex;align-items:center;justify-content:center;background:var(--border-color)"><i data-lucide="search" style="width:16px;height:16px;color:var(--text-tertiary);"></i></div>`;
@@ -822,6 +837,10 @@ function displayAutocompleteResults(results) {
 
 async function selectAutocompleteItem(res) {
   DOM.autocompleteDropdown.style.display = "none";
+  if (res.type === "google-error") {
+    openSettingsModal();
+    return;
+  }
   DOM.watchSearchInput.value = res.title;
   
   const w = res.data;
@@ -1294,7 +1313,7 @@ function handleSaveSettings() {
 
 async function testGoogleSearch(key, cx) {
   try {
-    const testUrl = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=test&num=1`;
+    const testUrl = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=test&num=1`;
     const res = await fetch(testUrl);
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
