@@ -2,6 +2,48 @@
    GRAIL TRACKER APPLICATION LOGIC
    ========================================================================== */
 
+// Capture Console Logs for On-Device Debugging
+const DEBUG_LOGS = [];
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+
+function addDebugLog(type, ...args) {
+  const msg = args.map(arg => {
+    if (arg instanceof Error) return `${arg.message}\n${arg.stack}`;
+    return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+  }).join(' ');
+  DEBUG_LOGS.push(`[${type}] ${new Date().toLocaleTimeString()}: ${msg}`);
+  if (DEBUG_LOGS.length > 50) DEBUG_LOGS.shift();
+  
+  const logViewer = document.getElementById("debug-log-viewer");
+  if (logViewer) {
+    logViewer.textContent = DEBUG_LOGS.join('\n');
+  }
+}
+
+console.log = (...args) => {
+  originalLog.apply(console, args);
+  addDebugLog('INFO', ...args);
+};
+console.error = (...args) => {
+  originalError.apply(console, args);
+  addDebugLog('ERROR', ...args);
+};
+console.warn = (...args) => {
+  originalWarn.apply(console, args);
+  addDebugLog('WARN', ...args);
+};
+
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error(`Uncaught: ${message} at ${source}:${lineno}:${colno}`);
+  return false;
+};
+window.onunhandledrejection = function(event) {
+  console.error(`Promise Rejection: ${event.reason}`);
+};
+
+
 // 1. Curated Watch Catalog (Autopopulate Database)
 const CURATED_CATALOG = [
   {
@@ -244,7 +286,8 @@ const DOM = {
   diagMsgBox: document.getElementById("diag-msg-box"),
   btnDiagPull: document.getElementById("btn-diag-pull"),
   btnDiagPush: document.getElementById("btn-diag-push"),
-  btnDiagMerge: document.getElementById("btn-diag-merge")
+  btnDiagMerge: document.getElementById("btn-diag-merge"),
+  btnToggleDebug: document.getElementById("btn-toggle-debug")
 };
 
 // State key variables
@@ -1115,6 +1158,17 @@ function setupEventListeners() {
   DOM.btnDiagPull.onclick = forcePullFromCloud;
   DOM.btnDiagPush.onclick = forcePushToCloud;
   DOM.btnDiagMerge.onclick = mergeCloudAndLocal;
+  DOM.btnToggleDebug.onclick = () => {
+    const viewer = document.getElementById("debug-log-viewer");
+    if (viewer) {
+      const isHidden = viewer.style.display === "none";
+      viewer.style.display = isHidden ? "block" : "none";
+      DOM.btnToggleDebug.innerHTML = isHidden 
+        ? `<i data-lucide="terminal"></i> Hide Debug Logs`
+        : `<i data-lucide="terminal"></i> Show Debug Logs`;
+      lucide.createIcons();
+    }
+  };
   DOM.btnExportJson.onclick = exportBackup;
   DOM.importJsonFile.onchange = importBackup;
   

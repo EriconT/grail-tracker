@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons for clean SVG representation -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="style.css?v=1.0.3">
+  <link rel="stylesheet" href="style.css?v=1.0.5">
 </head>
 <body>
 
@@ -393,6 +393,14 @@
           </ol>
         </div>
 
+        <hr class="form-divider">
+        <div class="debug-console-section" style="margin-top: 1rem;">
+          <button id="btn-toggle-debug" class="btn btn-outline" style="width: 100%; justify-content: center;">
+            <i data-lucide="terminal"></i> Show Debug Logs
+          </button>
+          <pre id="debug-log-viewer" style="display: none; background: var(--bg-sync-bar, #1a1a1a); color: var(--text-secondary, #ccc); font-family: monospace; font-size: 0.7rem; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); max-height: 200px; overflow-y: auto; text-align: left; white-space: pre-wrap; margin-top: 0.5rem;"></pre>
+        </div>
+
       </div>
     </div>
   </div>
@@ -489,6 +497,6 @@
   </div>
 
   <!-- App Script Entry -->
-  <script src="app.js?v=1.0.3"></script>
+  <script src="app.js?v=1.0.5"></script>
 </body>
 </html>
