@@ -932,6 +932,14 @@ function renderWatches() {
           </div>
         </div>
         
+        <div class="card-journal">
+          <div class="card-journal-header">
+            <i data-lucide="book-open"></i>
+            <span>Daydream Journal</span>
+          </div>
+          <p class="card-journal-text">${watch.notes && watch.notes.trim() ? escapeHtml(watch.notes) : '<span class="card-journal-empty">No journal notes added yet.</span>'}</p>
+        </div>
+        
         <div class="card-footer">
           <span class="card-price">$${formatCurrency(watch.price)}</span>
           <div class="card-actions">
