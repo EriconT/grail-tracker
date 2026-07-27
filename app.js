@@ -1340,6 +1340,9 @@ function openSettingsModal() {
   updateDiagnosticsUI();
   
   DOM.modalSettings.classList.add("active");
+  setTimeout(() => {
+    if (DOM.settingsPat) DOM.settingsPat.focus();
+  }, 150);
 }
 
 function handleSaveSettings() {
