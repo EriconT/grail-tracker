@@ -174,8 +174,8 @@ const CURATED_CATALOG = [
   }
 ];
 
-// Fallback Public Exhibition Gist ID (used when no private Gist ID is configured in settings)
-const DEFAULT_GIST_ID = "5d57b54fa3c79a97bc187b419fb838ee";
+// Default Public Exhibition Gist ID (used when no private Gist ID is configured in settings)
+const DEFAULT_GIST_ID = "a23fffd73a6dab23120b53edf0fe14bf";
 
 // 2. Application State
 let STATE = {
@@ -523,7 +523,7 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
       }
     }
 
-    updateSyncUIStatus("online");
+    updateSyncUIStatus(isAdmin ? "online" : "exhibition");
   } catch (error) {
     console.error("Gist Sync failed:", error);
     if (loaderToastId) dismissToast(loaderToastId);
