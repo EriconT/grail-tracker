@@ -324,54 +324,20 @@ window.addEventListener("DOMContentLoaded", () => {
   console.log("Initialization complete.");
 });
 
-// 5. Theme Handlers
+// 5. Theme Handlers — Solely Dark Mode
 function initTheme() {
-  const savedTheme = localStorage.getItem("grail_tracker_theme") || "auto";
-  STATE.theme = savedTheme;
-  applyTheme(savedTheme);
-
-  // Listen for system theme changes if user is on 'auto'
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (STATE.theme === "auto") {
-      applyTheme("auto");
-    }
-  });
+  STATE.theme = "dark";
+  applyTheme("dark");
 }
 
 function applyTheme(theme) {
-  const themeIcon = document.getElementById("theme-icon");
-  const isDark = theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  if (isDark) {
-    document.documentElement.setAttribute("data-theme", "dark");
-    document.body.setAttribute("data-theme", "dark");
-    if (themeIcon) themeIcon.setAttribute("data-lucide", "sun");
-  } else if (theme === "light") {
-    document.documentElement.setAttribute("data-theme", "light");
-    document.body.setAttribute("data-theme", "light");
-    if (themeIcon) themeIcon.setAttribute("data-lucide", "moon");
-  } else {
-    document.documentElement.setAttribute("data-theme", "auto");
-    document.body.setAttribute("data-theme", "auto");
-    if (themeIcon) themeIcon.setAttribute("data-lucide", "moon");
-  }
-
-  localStorage.setItem("grail_tracker_theme", theme);
-  if (typeof lucide !== "undefined" && lucide.createIcons) {
-    lucide.createIcons();
-  }
+  document.documentElement.setAttribute("data-theme", "dark");
+  document.body.setAttribute("data-theme", "dark");
+  localStorage.setItem("grail_tracker_theme", "dark");
 }
 
 function toggleTheme() {
-  const currentEffectiveDark = document.body.getAttribute("data-theme") === "dark" ||
-    (STATE.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  const nextTheme = currentEffectiveDark ? "light" : "dark";
-  STATE.theme = nextTheme;
-  applyTheme(nextTheme);
-
-  const modeText = `${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)} Mode`;
-  showToast("Theme Updated", `Switched to ${modeText}`, "info");
+  applyTheme("dark");
 }
 
 // 6. Data Loaders & Caching
@@ -595,36 +561,50 @@ async function createNewPrivateGist(pat) {
 }
 
 function updateSyncUIStatus(status) {
+  const syncIcon = document.getElementById("sync-badge-icon");
+
   if (status === "online") {
-    DOM.syncStatusBar.style.display = "flex";
-    DOM.syncStatusBar.style.backgroundColor = "hsla(142, 60%, 40%, 0.1)";
-    DOM.syncStatusBar.style.borderColor = "hsla(142, 60%, 40%, 0.25)";
-    DOM.syncStatusText.innerHTML = `<i data-lucide="cloud-lightning" style="color:var(--success);"></i> Cloud Sync Connected (Gist: ${STATE.settings.gistId.substring(0,8)}...)`;
-    DOM.syncDot.className = "sync-indicator-dot online";
-    DOM.footerSyncMsg.textContent = "Synced Cloud Database";
-    DOM.btnSyncNow.style.display = "inline-flex";
+    if (DOM.syncStatusBar) {
+      DOM.syncStatusBar.style.display = "flex";
+      DOM.syncStatusBar.style.borderColor = "hsla(142, 60%, 40%, 0.4)";
+    }
+    if (DOM.syncStatusText) {
+      DOM.syncStatusText.textContent = `Connected (${STATE.settings.gistId ? STATE.settings.gistId.substring(0, 6) : "Gist"}...)`;
+    }
+    if (syncIcon) syncIcon.setAttribute("data-lucide", "cloud-lightning");
+    if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot online";
+    if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Synced Cloud Database";
+    if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "inline-flex";
   } else if (status === "syncing") {
-    DOM.syncDot.className = "sync-indicator-dot syncing";
-    DOM.footerSyncMsg.textContent = "Synchronizing...";
+    if (DOM.syncStatusText) DOM.syncStatusText.textContent = "Syncing...";
+    if (syncIcon) syncIcon.setAttribute("data-lucide", "refresh-cw");
+    if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot syncing";
+    if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Synchronizing...";
   } else if (status === "error") {
-    DOM.syncStatusBar.style.display = "flex";
-    DOM.syncStatusBar.style.backgroundColor = "hsla(350, 75%, 50%, 0.1)";
-    DOM.syncStatusBar.style.borderColor = "hsla(350, 75%, 50%, 0.25)";
-    DOM.syncStatusText.innerHTML = `<i data-lucide="alert-triangle" style="color:var(--danger);"></i> Cloud connection failed. Sync suspended. Check settings.`;
-    DOM.syncDot.className = "sync-indicator-dot offline";
-    DOM.footerSyncMsg.textContent = "Sync Connection Error";
-    DOM.btnSyncNow.style.display = "inline-flex";
+    if (DOM.syncStatusBar) {
+      DOM.syncStatusBar.style.display = "flex";
+      DOM.syncStatusBar.style.borderColor = "hsla(350, 75%, 50%, 0.4)";
+    }
+    if (DOM.syncStatusText) DOM.syncStatusText.textContent = "Connection Error";
+    if (syncIcon) syncIcon.setAttribute("data-lucide", "alert-triangle");
+    if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot offline";
+    if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Sync Connection Error";
+    if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "inline-flex";
   } else {
     // Offline / unconfigured
-    DOM.syncStatusBar.style.display = "flex";
-    DOM.syncStatusBar.style.backgroundColor = "var(--bg-sync-bar)";
-    DOM.syncStatusBar.style.borderColor = "var(--border-color)";
-    DOM.syncStatusText.innerHTML = `<i data-lucide="cloud-off"></i> Local Cache Active. Configure settings to backup collection to cloud.`;
-    DOM.syncDot.className = "sync-indicator-dot";
-    DOM.footerSyncMsg.textContent = "Local Cache Mode";
-    DOM.btnSyncNow.style.display = "none";
+    if (DOM.syncStatusBar) {
+      DOM.syncStatusBar.style.display = "flex";
+      DOM.syncStatusBar.style.borderColor = "var(--border-color)";
+    }
+    if (DOM.syncStatusText) DOM.syncStatusText.textContent = "Offline (Local)";
+    if (syncIcon) syncIcon.setAttribute("data-lucide", "cloud-off");
+    if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot";
+    if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Local Cache Mode";
+    if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "none";
   }
-  lucide.createIcons();
+  if (typeof lucide !== "undefined" && lucide.createIcons) {
+    lucide.createIcons();
+  }
 }
 
 
@@ -1183,7 +1163,7 @@ function setupEventListeners() {
   DOM.btnEmptyAdd.onclick = () => openWatchModal();
   DOM.btnLoadDemo.onclick = () => loadDemoCollection();
   DOM.btnSettings.onclick = openSettingsModal;
-  DOM.btnThemeToggle.onclick = toggleTheme;
+  if (DOM.btnThemeToggle) DOM.btnThemeToggle.onclick = toggleTheme;
   DOM.btnSyncNow.onclick = () => syncWithGist();
   
   // Close Modals

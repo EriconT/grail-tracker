@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grail Tracker — Admire Your Dream Collection</title>
-  <!-- Google Fonts: Outfit (headings) and Inter (body) -->
+  <!-- Google Fonts: Bodoni Moda, Cinzel (high-fashion editorial luxury), Plus Jakarta Sans, Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cinzel:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons for clean SVG representation -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="icon" type="image/png" href="favicon.png?v=1.1.1">
-  <link rel="apple-touch-icon" href="favicon.png?v=1.1.1">
+  <link rel="icon" type="image/png" href="favicon.png?v=1.1.2">
+  <link rel="apple-touch-icon" href="favicon.png?v=1.1.2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Grail Tracker">
-  <link rel="stylesheet" href="style.css?v=1.1.1">
+  <link rel="stylesheet" href="style.css?v=1.1.2">
 </head>
 <body>
 
@@ -25,7 +25,7 @@
     <!-- Top Header -->
     <header class="app-header">
       <div class="header-logo">
-        <i data-lucide="compass" class="logo-icon"></i>
+        <img src="favicon.png?v=1.1.2" alt="Grail Tracker Logo" class="logo-icon">
         <h1>Grail <span class="accent-text">Tracker</span></h1>
       </div>
       
@@ -46,7 +46,17 @@
             <span class="stat-value" id="stat-count">0 Watches</span>
           </div>
         </div>
-        
+
+        <div class="stat-badge sync-stat-badge" id="sync-status-bar">
+          <i data-lucide="cloud-off" id="sync-badge-icon"></i>
+          <div class="stat-content">
+            <span class="stat-label">Cloud Sync</span>
+            <span class="stat-value sync-stat-val" id="sync-status-text">Offline (Local)</span>
+          </div>
+          <button id="btn-sync-now" class="btn-link" style="display:none;" title="Sync Now">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Header Actions -->
@@ -58,21 +68,8 @@
         <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
           <i data-lucide="settings"></i>
         </button>
-        <button id="btn-theme-toggle" class="btn btn-icon" title="Toggle Theme">
-          <i data-lucide="moon" id="theme-icon"></i>
-        </button>
       </div>
     </header>
-
-    <!-- Sync Alert bar (if token not set or last sync details) -->
-    <div class="sync-status-bar" id="sync-status-bar">
-      <span id="sync-status-text">
-        <i data-lucide="cloud-off"></i> Offline Mode (Local Storage only). Configure GitHub Gist for cross-device syncing.
-      </span>
-      <button id="btn-sync-now" class="btn-link" style="display:none;">
-        <i data-lucide="refresh-cw"></i> Sync Now
-      </button>
-    </div>
 
     <!-- Main Content Area -->
     <main class="main-content">
@@ -510,6 +507,6 @@
   </div>
 
   <!-- App Script Entry -->
-  <script src="app.js?v=1.1.1"></script>
+  <script src="app.js?v=1.1.2"></script>
 </body>
 </html>
