@@ -289,6 +289,7 @@ const DOM = {
   btnDiagPull: document.getElementById("btn-diag-pull"),
   btnDiagPush: document.getElementById("btn-diag-push"),
   btnDiagMerge: document.getElementById("btn-diag-merge"),
+  btnCopySyncLink: document.getElementById("btn-copy-sync-link"),
   btnToggleDebug: document.getElementById("btn-toggle-debug")
 };
 
@@ -302,6 +303,21 @@ window.addEventListener("DOMContentLoaded", () => {
   console.log("Local storage exists:", !!localStorage.getItem(STORAGE_KEY));
   
   loadLocalState();
+
+  // URL Query Sync Parameter check (e.g. ?gist=...&pat=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlGist = urlParams.get("gist");
+  const urlPat = urlParams.get("pat");
+
+  if (urlGist) {
+    console.log("Gist ID detected in URL parameters:", urlGist);
+    STATE.settings.gistId = urlGist;
+    if (urlPat) STATE.settings.githubPat = urlPat;
+    STATE.settings.autoSync = true;
+    saveLocalState();
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   initTheme();
   renderWatches();
   setupEventListeners();
@@ -309,7 +325,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // Trigger auto sync on load if Gist credentials exist
   if (STATE.settings.githubPat && STATE.settings.gistId && STATE.settings.autoSync) {
     console.log("Auto-sync credentials detected, starting auto-sync...");
-    syncWithGist();
+    syncWithGist(false, true); // force pull remote changes on fresh load
   } else {
     console.log("Auto-sync bypassed or credentials missing.", {
       hasPat: !!STATE.settings.githubPat,
@@ -1197,6 +1213,17 @@ function setupEventListeners() {
   DOM.btnDiagPull.onclick = forcePullFromCloud;
   DOM.btnDiagPush.onclick = forcePushToCloud;
   DOM.btnDiagMerge.onclick = mergeCloudAndLocal;
+  if (DOM.btnCopySyncLink) {
+    DOM.btnCopySyncLink.onclick = () => {
+      if (!STATE.settings.gistId) {
+        showToast("Sync Link Error", "Please configure and save your Gist ID first.", "error");
+        return;
+      }
+      const syncUrl = `${window.location.origin}${window.location.pathname}?gist=${STATE.settings.gistId}${STATE.settings.githubPat ? '&pat=' + encodeURIComponent(STATE.settings.githubPat) : ''}`;
+      navigator.clipboard.writeText(syncUrl);
+      showToast("1-Click Sync Link Copied!", "Open this link in any browser to sync your collection instantly.", "success");
+    };
+  }
   DOM.btnToggleDebug.onclick = () => {
     const viewer = document.getElementById("debug-log-viewer");
     if (viewer) {
