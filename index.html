@@ -29,51 +29,54 @@
         <h1>Grail <span class="accent-text">Tracker</span></h1>
       </div>
       
-      <!-- Stats Bar (Summary Cards) -->
-      <div class="header-stats">
-        <div class="stat-badge tooltip" title="Total estimated cost of all watches in your list">
-          <i data-lucide="dollar-sign"></i>
-          <div class="stat-content">
-            <span class="stat-label">Total Value</span>
-            <span class="stat-value" id="stat-total-value">$0</span>
+      <!-- Right Header Panel: Stats & Actions -->
+      <div class="header-right-panel">
+        <!-- Stats Bar (Summary Cards) -->
+        <div class="header-stats">
+          <div class="stat-badge tooltip" title="Total estimated cost of all watches in your list">
+            <i data-lucide="dollar-sign"></i>
+            <div class="stat-content">
+              <span class="stat-label">Total Value</span>
+              <span class="stat-value" id="stat-total-value">$0</span>
+            </div>
           </div>
-        </div>
-        
-        <div class="stat-badge">
-          <i data-lucide="watch"></i>
-          <div class="stat-content">
-            <span class="stat-label">Wishlist</span>
-            <span class="stat-value" id="stat-count">0 Watches</span>
+          
+          <div class="stat-badge">
+            <i data-lucide="watch"></i>
+            <div class="stat-content">
+              <span class="stat-label">Wishlist</span>
+              <span class="stat-value" id="stat-count">0 Watches</span>
+            </div>
+          </div>
+
+          <div class="stat-badge sync-stat-badge" id="sync-status-bar">
+            <i data-lucide="cloud-off" id="sync-badge-icon"></i>
+            <div class="stat-content">
+              <span class="stat-label">Cloud Sync</span>
+              <span class="stat-value sync-stat-val" id="sync-status-text">Offline (Local)</span>
+            </div>
+            <button id="btn-sync-now" class="btn-link" style="display:none;" title="Sync Now">
+              <i data-lucide="refresh-cw"></i>
+            </button>
           </div>
         </div>
 
-        <div class="stat-badge sync-stat-badge" id="sync-status-bar">
-          <i data-lucide="cloud-off" id="sync-badge-icon"></i>
-          <div class="stat-content">
-            <span class="stat-label">Cloud Sync</span>
-            <span class="stat-value sync-stat-val" id="sync-status-text">Offline (Local)</span>
+        <!-- Header Actions -->
+        <div class="header-actions">
+          <button id="btn-admin-login" class="btn btn-exhibition-pill" title="Toggle Admin / Exhibition Mode">
+            <i data-lucide="shield-check" id="admin-status-icon"></i>
+            <span id="admin-status-text">Exhibition Gallery</span>
+          </button>
+
+          <div class="header-buttons-group">
+            <button id="btn-add-watch" class="btn btn-primary admin-only">
+              <i data-lucide="plus"></i>
+              <span>Add Watch</span>
+            </button>
+            <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
+              <i data-lucide="settings"></i>
+            </button>
           </div>
-          <button id="btn-sync-now" class="btn-link" style="display:none;" title="Sync Now">
-            <i data-lucide="refresh-cw"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Header Actions -->
-      <div class="header-actions">
-        <button id="btn-admin-login" class="btn btn-exhibition-pill" title="Toggle Admin / Exhibition Mode">
-          <i data-lucide="shield-check" id="admin-status-icon"></i>
-          <span id="admin-status-text">Exhibition Gallery</span>
-        </button>
-
-        <div class="header-buttons-group" style="display: flex; gap: 0.5rem; align-items: center;">
-          <button id="btn-add-watch" class="btn btn-primary admin-only">
-            <i data-lucide="plus"></i>
-            <span>Add Watch</span>
-          </button>
-          <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
-            <i data-lucide="settings"></i>
-          </button>
         </div>
       </div>
     </header>
