@@ -362,8 +362,10 @@ function loadLocalState() {
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      STATE.watches = parsed.watches || [];
-      STATE.lastUpdated = parsed.lastUpdated || 0;
+      STATE.watches = (parsed.watches && parsed.watches.length > 0) 
+        ? parsed.watches 
+        : JSON.parse(JSON.stringify(CURATED_CATALOG));
+      STATE.lastUpdated = parsed.lastUpdated || Date.now();
       const loadedSettings = parsed.settings || {};
       STATE.settings = {
         githubPat: loadedSettings.githubPat || "",
@@ -374,12 +376,13 @@ function loadLocalState() {
       console.log(`Loaded cache: ${STATE.watches.length} watches, lastUpdated: ${STATE.lastUpdated}`);
     } catch (e) {
       console.error("Error parsing cache", e);
-      showToast("Data Loading Error", "Local cache corrupt. Resetting database.", "error");
+      STATE.watches = JSON.parse(JSON.stringify(CURATED_CATALOG));
+      STATE.lastUpdated = Date.now();
     }
   } else {
-    STATE.watches = [];
-    STATE.lastUpdated = 0;
-    console.log("No cache found. Initialized empty local database.");
+    STATE.watches = JSON.parse(JSON.stringify(CURATED_CATALOG));
+    STATE.lastUpdated = Date.now();
+    console.log("No cache found. Initialized Exhibition database with Curated Catalog.");
   }
   
   // Apply View Mode
@@ -412,22 +415,23 @@ function saveLocalState(updateTimestamp = false) {
 
 // 7. Watch Database Syncing Engine (GitHub Gist API)
 async function syncWithGist(isSilentPush = false, forcePull = false) {
-  const activeGistId = STATE.settings.gistId || DEFAULT_GIST_ID;
-  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  const userGistId = STATE.settings.gistId && STATE.settings.gistId.trim();
+  const activeGistId = userGistId || DEFAULT_GIST_ID;
+  const isAdmin = !!userGistId;
   const { githubPat } = STATE.settings;
   console.log(`syncWithGist triggered. silent: ${isSilentPush}, forcePull: ${forcePull}, activeGist: ${activeGistId}, isAdmin: ${isAdmin}`);
 
   if (!activeGistId) {
-    console.log("Sync skipped: Gist ID missing.");
-    updateSyncUIStatus("offline");
+    console.log("Sync skipped: No Gist ID configured.");
+    updateSyncUIStatus("exhibition");
     return;
   }
 
   let loaderToastId = null;
-  if (!isSilentPush) {
+  if (!isSilentPush && userGistId) {
     loaderToastId = showToast("Syncing Database", "Connecting to GitHub Gist...", "loading");
   }
-  updateSyncUIStatus("syncing");
+  if (userGistId) updateSyncUIStatus("syncing");
 
   try {
     // 1. Fetch remote content
@@ -446,7 +450,23 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
 
     console.log(`Gist fetch response: ${response.status} ${response.statusText}`);
     if (!response.ok) {
-      throw new Error(`GitHub API returned ${response.status}`);
+      if (response.status === 404) {
+        if (!userGistId) {
+          // Default fallback Gist ID returned 404 — operating in Exhibition Mode with Curated Catalog
+          console.log("Default Gist ID not found (404). Operating in Exhibition Mode with Curated Catalog.");
+          if (!STATE.watches || STATE.watches.length === 0) {
+            STATE.watches = JSON.parse(JSON.stringify(CURATED_CATALOG));
+          }
+          renderWatches();
+          if (loaderToastId) dismissToast(loaderToastId);
+          updateSyncUIStatus("exhibition");
+          return;
+        } else {
+          throw new Error("Specified Gist ID not found on GitHub (404). Please check your Gist ID in Settings.");
+        }
+      } else {
+        throw new Error(`GitHub API returned ${response.status}`);
+      }
     }
 
     const gistData = await response.json();
@@ -507,8 +527,12 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
   } catch (error) {
     console.error("Gist Sync failed:", error);
     if (loaderToastId) dismissToast(loaderToastId);
-    showToast("Sync Failed", error.message || "Failed to contact GitHub Gist", "error");
-    updateSyncUIStatus("error");
+    if (userGistId) {
+      showToast("Sync Failed", error.message || "Failed to contact GitHub Gist", "error");
+      updateSyncUIStatus("error");
+    } else {
+      updateSyncUIStatus("exhibition");
+    }
   }
 }
 
@@ -607,6 +631,16 @@ function updateSyncUIStatus(status) {
     if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot online";
     if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Synced Cloud Database";
     if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "inline-flex";
+  } else if (status === "exhibition") {
+    if (DOM.syncStatusBar) {
+      DOM.syncStatusBar.style.display = "flex";
+      DOM.syncStatusBar.style.borderColor = "var(--border-color)";
+    }
+    if (DOM.syncStatusText) DOM.syncStatusText.textContent = "Exhibition Gallery";
+    if (syncIcon) syncIcon.setAttribute("data-lucide", "globe");
+    if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot online";
+    if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Exhibition Gallery Mode";
+    if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "none";
   } else if (status === "syncing") {
     if (DOM.syncStatusText) DOM.syncStatusText.textContent = "Syncing...";
     if (syncIcon) syncIcon.setAttribute("data-lucide", "refresh-cw");
