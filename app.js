@@ -319,15 +319,16 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   initTheme();
+  updateAdminUI();
   renderWatches();
   setupEventListeners();
   
-  // Trigger auto sync on load if Gist credentials exist
-  if (STATE.settings.githubPat && STATE.settings.gistId && STATE.settings.autoSync) {
-    console.log("Auto-sync credentials detected, starting auto-sync...");
-    syncWithGist(false, true); // force pull remote changes on fresh load
+  // Trigger auto sync on load if Gist ID exists
+  if (STATE.settings.gistId) {
+    console.log("Gist ID detected, fetching remote collection...");
+    syncWithGist(false, true); // force pull remote changes on load
   } else {
-    console.log("Auto-sync bypassed or credentials missing.", {
+    console.log("No Gist ID configured yet.", {
       hasPat: !!STATE.settings.githubPat,
       hasGist: !!STATE.settings.gistId,
       autoSync: STATE.settings.autoSync
@@ -413,8 +414,8 @@ function saveLocalState(updateTimestamp = false) {
 async function syncWithGist(isSilentPush = false, forcePull = false) {
   const { githubPat, gistId } = STATE.settings;
   console.log(`syncWithGist triggered. silent: ${isSilentPush}, forcePull: ${forcePull}`);
-  if (!githubPat || !gistId) {
-    console.log("Sync skipped: credentials missing.");
+  if (!gistId) {
+    console.log("Sync skipped: Gist ID missing.");
     updateSyncUIStatus("offline");
     return;
   }
@@ -428,12 +429,16 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
   try {
     // 1. Fetch remote content
     console.log(`Fetching Gist ${gistId}...`);
+    const headers = {
+      "Accept": "application/vnd.github.v3+json"
+    };
+    if (githubPat && githubPat.trim()) {
+      headers["Authorization"] = `token ${githubPat}`;
+    }
+
     const response = await fetch(`https://api.github.com/gists/${gistId}`, {
       method: "GET",
-      headers: {
-        "Authorization": `token ${githubPat}`,
-        "Accept": "application/vnd.github.v3+json"
-      }
+      headers: headers
     });
 
     console.log(`Gist fetch response: ${response.status} ${response.statusText}`);
@@ -451,9 +456,9 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
       const localTimestamp = STATE.lastUpdated || 0;
       console.log(`Gist evaluation: remoteTime=${remoteTimestamp}, localTime=${localTimestamp}, remoteWatches=${remoteData.watches?.length || 0}`);
 
-      if (forcePull || remoteTimestamp > localTimestamp) {
-        console.log("Decision: PULLING remote changes (remote is newer or forcePull is active)");
-        // Remote is newer - Pull changes
+      if (!githubPat || forcePull || remoteTimestamp > localTimestamp) {
+        console.log("Decision: PULLING remote changes (public view or remote is newer)");
+        // Remote is newer or public visitor - Pull changes
         STATE.watches = remoteData.watches || [];
         STATE.lastUpdated = remoteTimestamp;
         
@@ -468,14 +473,15 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
         
         renderWatches();
         if (loaderToastId) dismissToast(loaderToastId);
-        showToast("Database Synced", "Successfully pulled newer data from GitHub.", "success");
+        if (!isSilentPush) showToast("Database Synced", "Loaded collection from GitHub Gist.", "success");
       } 
       else if (localTimestamp > remoteTimestamp || !remoteTimestamp) {
-        console.log("Decision: PUSHING local changes (local is newer)");
-        // Local is newer - Push changes
-        await pushStateToGist(githubPat, gistId);
-        if (loaderToastId) dismissToast(loaderToastId);
-        if (!isSilentPush) showToast("Database Synced", "Successfully pushed local updates to cloud.", "success");
+        if (githubPat) {
+          console.log("Decision: PUSHING local changes (owner with PAT)");
+          await pushStateToGist(githubPat, gistId);
+          if (loaderToastId) dismissToast(loaderToastId);
+          if (!isSilentPush) showToast("Database Synced", "Successfully pushed local updates to cloud.", "success");
+        }
       } 
       else {
         console.log("Decision: ALREADY IN SYNC");
@@ -533,7 +539,7 @@ async function createNewPrivateGist(pat) {
     return;
   }
 
-  const loaderToastId = showToast("Creating Gist", "Generating new private Gist on GitHub...", "loading");
+  const loaderToastId = showToast("Creating Public Gist", "Generating new public Gist on GitHub...", "loading");
 
   try {
     const payload = {
@@ -549,8 +555,8 @@ async function createNewPrivateGist(pat) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        description: "Grail Tracker Cloud Sync Database",
-        public: false,
+        description: "Grail Tracker Public Watch Collection Database",
+        public: true,
         files: {
           "grail_tracker_watches.json": {
             content: JSON.stringify(payload, null, 2)
@@ -566,9 +572,12 @@ async function createNewPrivateGist(pat) {
     const data = await response.json();
     dismissToast(loaderToastId);
     
-    // Save to settings inputs
+    // Save to settings inputs & state
     DOM.settingsGistId.value = data.id;
-    showToast("Gist Created!", `ID: ${data.id.substring(0, 8)}... saved. Click 'Save Settings' to apply.`, "success");
+    STATE.settings.gistId = data.id;
+    saveLocalState();
+    updateAdminUI();
+    showToast("Public Gist Created!", `ID: ${data.id.substring(0, 8)}... saved. Anyone can now view your collection!`, "success");
   } catch (error) {
     console.error("Gist creation error:", error);
     dismissToast(loaderToastId);
@@ -618,6 +627,28 @@ function updateSyncUIStatus(status) {
     if (DOM.footerSyncMsg) DOM.footerSyncMsg.textContent = "Local Cache Mode";
     if (DOM.btnSyncNow) DOM.btnSyncNow.style.display = "none";
   }
+  if (typeof lucide !== "undefined" && lucide.createIcons) {
+    lucide.createIcons();
+  }
+}
+
+function updateAdminUI() {
+  const adminBtnText = document.getElementById("admin-status-text");
+  const adminBtnIcon = document.getElementById("admin-status-icon");
+  const isAdmin = !!(STATE.settings.githubPat && STATE.settings.githubPat.trim());
+
+  if (isAdmin) {
+    document.body.classList.add("is-admin");
+    document.body.classList.remove("is-exhibition");
+    if (adminBtnText) adminBtnText.textContent = "Owner Admin";
+    if (adminBtnIcon) adminBtnIcon.setAttribute("data-lucide", "shield-check");
+  } else {
+    document.body.classList.remove("is-admin");
+    document.body.classList.add("is-exhibition");
+    if (adminBtnText) adminBtnText.textContent = "Exhibition Gallery";
+    if (adminBtnIcon) adminBtnIcon.setAttribute("data-lucide", "globe");
+  }
+
   if (typeof lucide !== "undefined" && lucide.createIcons) {
     lucide.createIcons();
   }
@@ -947,7 +978,7 @@ function renderWatches() {
         
         <div class="card-footer">
           <span class="card-price">$${formatCurrency(watch.price)}</span>
-          <div class="card-actions">
+          <div class="card-actions admin-only">
             <button class="btn-icon btn-card-edit" title="Edit Specs" data-id="${watch.id}">
               <i data-lucide="edit-2" style="width:14px;height:14px;"></i>
             </button>
@@ -966,16 +997,22 @@ function renderWatches() {
       }
     });
 
-    // Sub-buttons inside card
-    card.querySelector(".btn-card-edit").addEventListener("click", (e) => {
-      e.stopPropagation();
-      openWatchModal(watch.id);
-    });
+    // Sub-buttons inside card (guarded for admin mode)
+    const editBtn = card.querySelector(".btn-card-edit");
+    if (editBtn) {
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openWatchModal(watch.id);
+      });
+    }
 
-    card.querySelector(".btn-card-delete").addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteWatch(watch.id);
-    });
+    const deleteBtn = card.querySelector(".btn-card-delete");
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteWatch(watch.id);
+      });
+    }
 
     DOM.watchesContainer.appendChild(card);
   });
@@ -1207,6 +1244,24 @@ function setupEventListeners() {
     updateImagePreview(e.target.value.trim());
   });
 
+  const adminBtn = document.getElementById("btn-admin-login");
+  if (adminBtn) {
+    adminBtn.onclick = () => {
+      const isAdmin = document.body.classList.contains("is-admin");
+      if (isAdmin) {
+        if (confirm("Switch to Public Exhibition View? (This clears local PAT credentials from this browser)")) {
+          STATE.settings.githubPat = "";
+          saveLocalState();
+          updateAdminUI();
+          showToast("Switched Mode", "Now viewing in Public Exhibition mode.", "info");
+        }
+      } else {
+        openSettingsModal();
+        showToast("Admin Sign In", "Enter your GitHub PAT in Settings to unlock Owner Admin Mode.", "info");
+      }
+    };
+  }
+  
   // Settings Modals Actions
   DOM.btnSaveSettings.onclick = handleSaveSettings;
   DOM.btnCreateGist.onclick = () => createNewPrivateGist(DOM.settingsPat.value.trim());
@@ -1298,6 +1353,7 @@ function handleSaveSettings() {
     autoSync: autoSync
   };
   saveLocalState();
+  updateAdminUI();
   
   showToast("Settings Saved", "Preferences updated in local storage.", "success");
   closeModal(DOM.modalSettings);

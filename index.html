@@ -61,13 +61,20 @@
 
       <!-- Header Actions -->
       <div class="header-actions">
-        <button id="btn-add-watch" class="btn btn-primary">
-          <i data-lucide="plus"></i>
-          <span>Add Watch</span>
+        <button id="btn-admin-login" class="btn-exhibition-pill" title="Toggle Admin / Exhibition Mode">
+          <i data-lucide="shield-check" id="admin-status-icon"></i>
+          <span id="admin-status-text">Exhibition Gallery</span>
         </button>
-        <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
-          <i data-lucide="settings"></i>
-        </button>
+
+        <div class="admin-actions-group admin-only" style="display: flex; gap: 0.5rem; align-items: center;">
+          <button id="btn-add-watch" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            <span>Add Watch</span>
+          </button>
+          <button id="btn-settings" class="btn btn-secondary" title="Sync & App Settings">
+            <i data-lucide="settings"></i>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -328,7 +335,7 @@
             <i data-lucide="save"></i> Save Settings
           </button>
           <button id="btn-create-gist" class="btn btn-outline">
-            <i data-lucide="git-branch"></i> Create Private Gist for Me
+            <i data-lucide="globe"></i> Create Public Gist for Me
           </button>
         </div>
 
@@ -487,7 +494,7 @@
               <p id="inspect-notes">Why I want this watch details go here...</p>
             </div>
 
-            <div class="inspect-footer-actions">
+            <div class="inspect-footer-actions admin-only">
               <button class="btn btn-outline" id="btn-inspect-edit">
                 <i data-lucide="edit-3"></i> Edit Watch
               </button>
