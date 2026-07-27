@@ -77,8 +77,9 @@
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* Automatic Dark Mode (Only active if the user hasn't set manual preferences) */
+/* Automatic Dark Mode (Only active if the user hasn't explicitly set light theme) */
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]),
   body:not([data-theme="light"]) {
     --bg-app: hsl(222, 28%, 6%);
     --bg-card: hsla(222, 22%, 12%, 0.6);

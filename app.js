@@ -329,39 +329,48 @@ function initTheme() {
   const savedTheme = localStorage.getItem("grail_tracker_theme") || "auto";
   STATE.theme = savedTheme;
   applyTheme(savedTheme);
+
+  // Listen for system theme changes if user is on 'auto'
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (STATE.theme === "auto") {
+      applyTheme("auto");
+    }
+  });
 }
 
 function applyTheme(theme) {
-  const root = document.documentElement;
   const themeIcon = document.getElementById("theme-icon");
-  
-  if (theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+  const isDark = theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  if (isDark) {
+    document.documentElement.setAttribute("data-theme", "dark");
     document.body.setAttribute("data-theme", "dark");
     if (themeIcon) themeIcon.setAttribute("data-lucide", "sun");
+  } else if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    document.body.setAttribute("data-theme", "light");
+    if (themeIcon) themeIcon.setAttribute("data-lucide", "moon");
   } else {
-    document.body.removeAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "auto");
+    document.body.setAttribute("data-theme", "auto");
     if (themeIcon) themeIcon.setAttribute("data-lucide", "moon");
   }
-  
+
   localStorage.setItem("grail_tracker_theme", theme);
-  lucide.createIcons();
+  if (typeof lucide !== "undefined" && lucide.createIcons) {
+    lucide.createIcons();
+  }
 }
 
 function toggleTheme() {
-  let nextTheme = "light";
-  if (STATE.theme === "auto") {
-    nextTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark";
-  } else if (STATE.theme === "light") {
-    nextTheme = "dark";
-  } else {
-    nextTheme = "auto";
-  }
-  
+  const currentEffectiveDark = document.body.getAttribute("data-theme") === "dark" ||
+    (STATE.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const nextTheme = currentEffectiveDark ? "light" : "dark";
   STATE.theme = nextTheme;
   applyTheme(nextTheme);
-  
-  // Inform user via toast
-  const modeText = nextTheme === "auto" ? "Device System Mode" : `${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)} Mode`;
+
+  const modeText = `${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)} Mode`;
   showToast("Theme Updated", `Switched to ${modeText}`, "info");
 }
 
