@@ -139,10 +139,10 @@
         <h2>Start Your Horological Journey</h2>
         <p>Your wishlist is currently empty. Add watches you dream of owning one day and admire them here.</p>
         <div class="empty-actions">
-          <button id="btn-empty-add" class="btn btn-primary">
+          <button id="btn-empty-add" class="btn btn-primary admin-only">
             <i data-lucide="plus"></i> Add Your First Watch
           </button>
-          <button id="btn-load-demo" class="btn btn-outline">
+          <button id="btn-load-demo" class="btn btn-outline admin-only">
             <i data-lucide="sparkles"></i> Load Demo Collection
           </button>
         </div>
@@ -299,6 +299,11 @@
       
       <div class="modal-body">
         
+        <!-- Mode Status Pill -->
+        <div id="settings-mode-badge" class="settings-mode-pill exhibition">
+          <i data-lucide="globe"></i> Mode: <strong>Exhibition Mode</strong> (Read-Only Gallery)
+        </div>
+
         <!-- Sync Description -->
         <div class="sync-intro">
           <i data-lucide="cloud-lightning" class="sync-intro-icon"></i>
@@ -311,17 +316,16 @@
         <hr class="form-divider">
 
         <div class="form-group">
-          <label for="settings-pat">GitHub Personal Access Token (PAT)</label>
-          <input type="password" id="settings-pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxx">
-          <p class="form-tip">Create a Classic or Fine-grained Personal Access Token with <b>gists</b> read/write scope.</p>
+          <label for="settings-gist-id">Private Gist ID <span class="admin-badge-highlight">(Unlocks Owner Admin Mode)</span></label>
+          <input type="text" id="settings-gist-id" placeholder="e.g. 5d57b54fa3c79a97bc187b419fb838ee">
+          <p class="form-tip">Inputting your private Gist ID switches the app to <b>Owner Admin Mode</b>, making data editable and synced across your devices.</p>
         </div>
 
         <div class="form-group">
-          <label for="settings-gist-id">Gist ID</label>
-          <input type="text" id="settings-gist-id" placeholder="e.g. 5d57b54fa3c79a97bc187b419fb838ee">
-          <p class="form-tip">Paste an existing Gist ID, or leave blank and click "Create New Gist" to generate one automatically.</p>
+          <label for="settings-pat">GitHub Personal Access Token (PAT)</label>
+          <input type="password" id="settings-pat" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxx">
+          <p class="form-tip">Create a Classic or Fine-grained Personal Access Token with <b>gists</b> read/write scope to push updates to GitHub.</p>
         </div>
-
 
         <div class="form-row-settings">
           <div class="form-group-checkbox">
@@ -334,7 +338,7 @@
           <button id="btn-save-settings" class="btn btn-primary">
             <i data-lucide="save"></i> Save Settings
           </button>
-          <button id="btn-create-gist" class="btn btn-outline">
+          <button id="btn-create-gist" class="btn btn-outline admin-only">
             <i data-lucide="globe"></i> Create Public Gist for Me
           </button>
         </div>
@@ -368,10 +372,10 @@
             <button id="btn-diag-pull" class="btn btn-secondary tooltip" title="Replace local browser data with the data stored in your GitHub Gist.">
               <i data-lucide="download-cloud"></i> Pull from Cloud
             </button>
-            <button id="btn-diag-push" class="btn btn-secondary tooltip" title="Replace Gist data with the data on this browser.">
+            <button id="btn-diag-push" class="btn btn-secondary tooltip admin-only" title="Replace Gist data with the data on this browser.">
               <i data-lucide="upload-cloud"></i> Push to Cloud
             </button>
-            <button id="btn-diag-merge" class="btn btn-outline tooltip" title="Merge both local and cloud databases. De-duplicates matching watches by ID.">
+            <button id="btn-diag-merge" class="btn btn-outline tooltip admin-only" title="Merge both local and cloud databases. De-duplicates matching watches by ID.">
               <i data-lucide="git-merge"></i> Merge Databases
             </button>
             <button id="btn-copy-sync-link" class="btn btn-primary tooltip" title="Copy a 1-click URL to open in any other browser to sync immediately.">
@@ -389,11 +393,11 @@
           <button id="btn-export-json" class="btn btn-outline">
             <i data-lucide="download"></i> Export JSON Backup
           </button>
-          <label for="import-json-file" class="btn btn-outline btn-file-label">
+          <label for="import-json-file" class="btn btn-outline btn-file-label admin-only">
             <i data-lucide="upload"></i> Import JSON Backup
             <input type="file" id="import-json-file" accept=".json" style="display: none;">
           </label>
-          <button id="btn-clear-all" class="btn btn-danger">
+          <button id="btn-clear-all" class="btn btn-danger admin-only">
             <i data-lucide="trash-2"></i> Wipe Local Cache
           </button>
         </div>

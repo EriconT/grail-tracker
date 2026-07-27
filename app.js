@@ -174,6 +174,9 @@ const CURATED_CATALOG = [
   }
 ];
 
+// Fallback Public Exhibition Gist ID (used when no private Gist ID is configured in settings)
+const DEFAULT_GIST_ID = "5d57b54fa3c79a97bc187b419fb838ee";
+
 // 2. Application State
 let STATE = {
   watches: [],
@@ -323,16 +326,12 @@ window.addEventListener("DOMContentLoaded", () => {
   renderWatches();
   setupEventListeners();
   
-  // Trigger auto sync on load if Gist ID exists
-  if (STATE.settings.gistId) {
-    console.log("Gist ID detected, fetching remote collection...");
+  // Trigger auto sync on load (using private Gist ID or fallback DEFAULT_GIST_ID)
+  const activeGistId = STATE.settings.gistId || DEFAULT_GIST_ID;
+  if (activeGistId) {
+    console.log("Fetching remote collection for active Gist ID:", activeGistId);
     syncWithGist(false, true); // force pull remote changes on load
   } else {
-    console.log("No Gist ID configured yet.", {
-      hasPat: !!STATE.settings.githubPat,
-      hasGist: !!STATE.settings.gistId,
-      autoSync: STATE.settings.autoSync
-    });
     updateSyncUIStatus("offline");
   }
   
@@ -404,17 +403,21 @@ function saveLocalState(updateTimestamp = false) {
   });
   localStorage.setItem(STORAGE_KEY, serialized);
   
-  // Automatically trigger sync if autosync is active
-  if (STATE.settings.githubPat && STATE.settings.gistId && STATE.settings.autoSync) {
+  // Automatically trigger sync if autosync is active and in Owner Admin mode with PAT
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  if (isAdmin && STATE.settings.githubPat && STATE.settings.autoSync) {
     syncWithGist(true); // silent push update
   }
 }
 
 // 7. Watch Database Syncing Engine (GitHub Gist API)
 async function syncWithGist(isSilentPush = false, forcePull = false) {
-  const { githubPat, gistId } = STATE.settings;
-  console.log(`syncWithGist triggered. silent: ${isSilentPush}, forcePull: ${forcePull}`);
-  if (!gistId) {
+  const activeGistId = STATE.settings.gistId || DEFAULT_GIST_ID;
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  const { githubPat } = STATE.settings;
+  console.log(`syncWithGist triggered. silent: ${isSilentPush}, forcePull: ${forcePull}, activeGist: ${activeGistId}, isAdmin: ${isAdmin}`);
+
+  if (!activeGistId) {
     console.log("Sync skipped: Gist ID missing.");
     updateSyncUIStatus("offline");
     return;
@@ -428,15 +431,15 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
 
   try {
     // 1. Fetch remote content
-    console.log(`Fetching Gist ${gistId}...`);
+    console.log(`Fetching Gist ${activeGistId}...`);
     const headers = {
       "Accept": "application/vnd.github.v3+json"
     };
     if (githubPat && githubPat.trim()) {
-      headers["Authorization"] = `token ${githubPat}`;
+      headers["Authorization"] = `token ${githubPat.trim()}`;
     }
 
-    const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+    const response = await fetch(`https://api.github.com/gists/${activeGistId}`, {
       method: "GET",
       headers: headers
     });
@@ -456,9 +459,9 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
       const localTimestamp = STATE.lastUpdated || 0;
       console.log(`Gist evaluation: remoteTime=${remoteTimestamp}, localTime=${localTimestamp}, remoteWatches=${remoteData.watches?.length || 0}`);
 
-      if (!githubPat || forcePull || remoteTimestamp > localTimestamp) {
-        console.log("Decision: PULLING remote changes (public view or remote is newer)");
-        // Remote is newer or public visitor - Pull changes
+      if (!isAdmin || forcePull || remoteTimestamp > localTimestamp || STATE.watches.length === 0) {
+        console.log("Decision: PULLING remote changes (exhibition gallery or remote is newer)");
+        // Pull changes
         STATE.watches = remoteData.watches || [];
         STATE.lastUpdated = remoteTimestamp;
         
@@ -476,25 +479,28 @@ async function syncWithGist(isSilentPush = false, forcePull = false) {
         if (!isSilentPush) showToast("Database Synced", "Loaded collection from GitHub Gist.", "success");
       } 
       else if (localTimestamp > remoteTimestamp || !remoteTimestamp) {
-        if (githubPat) {
+        if (isAdmin && githubPat) {
           console.log("Decision: PUSHING local changes (owner with PAT)");
-          await pushStateToGist(githubPat, gistId);
+          await pushStateToGist(githubPat, activeGistId);
           if (loaderToastId) dismissToast(loaderToastId);
           if (!isSilentPush) showToast("Database Synced", "Successfully pushed local updates to cloud.", "success");
         }
       } 
       else {
         console.log("Decision: ALREADY IN SYNC");
-        // Equal - No actions needed
         if (loaderToastId) dismissToast(loaderToastId);
         if (!isSilentPush) showToast("Database Synced", "Cloud and local data are fully in sync.", "success");
       }
     } else {
-      console.log("Decision: Gist file does not exist, initializing Gist with local data...");
-      // File not present in Gist - Initialize file with local data
-      await pushStateToGist(githubPat, gistId);
-      if (loaderToastId) dismissToast(loaderToastId);
-      showToast("Gist Initialized", "Created watch file in your Gist.", "success");
+      if (isAdmin && githubPat) {
+        console.log("Decision: Gist file does not exist, initializing Gist with local data...");
+        await pushStateToGist(githubPat, activeGistId);
+        if (loaderToastId) dismissToast(loaderToastId);
+        showToast("Gist Initialized", "Created watch file in your Gist.", "success");
+      } else {
+        if (loaderToastId) dismissToast(loaderToastId);
+        showToast("Sync Notice", "Remote Gist file empty.", "info");
+      }
     }
 
     updateSyncUIStatus("online");
@@ -577,7 +583,7 @@ async function createNewPrivateGist(pat) {
     STATE.settings.gistId = data.id;
     saveLocalState();
     updateAdminUI();
-    showToast("Public Gist Created!", `ID: ${data.id.substring(0, 8)}... saved. Anyone can now view your collection!`, "success");
+    showToast("Public Gist Created!", `ID: ${data.id.substring(0, 8)}... saved. Owner Admin mode unlocked!`, "success");
   } catch (error) {
     console.error("Gist creation error:", error);
     dismissToast(loaderToastId);
@@ -587,6 +593,7 @@ async function createNewPrivateGist(pat) {
 
 function updateSyncUIStatus(status) {
   const syncIcon = document.getElementById("sync-badge-icon");
+  const activeGist = STATE.settings.gistId || DEFAULT_GIST_ID;
 
   if (status === "online") {
     if (DOM.syncStatusBar) {
@@ -594,7 +601,7 @@ function updateSyncUIStatus(status) {
       DOM.syncStatusBar.style.borderColor = "hsla(142, 60%, 40%, 0.4)";
     }
     if (DOM.syncStatusText) {
-      DOM.syncStatusText.textContent = `Connected (${STATE.settings.gistId ? STATE.settings.gistId.substring(0, 6) : "Gist"}...)`;
+      DOM.syncStatusText.textContent = `Connected (${activeGist ? activeGist.substring(0, 6) : "Gist"}...)`;
     }
     if (syncIcon) syncIcon.setAttribute("data-lucide", "cloud-lightning");
     if (DOM.syncDot) DOM.syncDot.className = "sync-indicator-dot online";
@@ -635,18 +642,30 @@ function updateSyncUIStatus(status) {
 function updateAdminUI() {
   const adminBtnText = document.getElementById("admin-status-text");
   const adminBtnIcon = document.getElementById("admin-status-icon");
-  const isAdmin = !!(STATE.settings.githubPat && STATE.settings.githubPat.trim());
+  const hasGistId = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  const isAdmin = hasGistId;
 
   if (isAdmin) {
     document.body.classList.add("is-admin");
     document.body.classList.remove("is-exhibition");
-    if (adminBtnText) adminBtnText.textContent = "Owner Admin";
+    if (adminBtnText) adminBtnText.textContent = "Owner Admin Mode";
     if (adminBtnIcon) adminBtnIcon.setAttribute("data-lucide", "shield-check");
   } else {
     document.body.classList.remove("is-admin");
     document.body.classList.add("is-exhibition");
     if (adminBtnText) adminBtnText.textContent = "Exhibition Gallery";
     if (adminBtnIcon) adminBtnIcon.setAttribute("data-lucide", "globe");
+  }
+
+  const settingsModeBadge = document.getElementById("settings-mode-badge");
+  if (settingsModeBadge) {
+    if (isAdmin) {
+      settingsModeBadge.className = "settings-mode-pill admin";
+      settingsModeBadge.innerHTML = `<i data-lucide="shield-check"></i> Mode: <strong>Owner Admin Mode</strong> (Full Edit Access Enabled)`;
+    } else {
+      settingsModeBadge.className = "settings-mode-pill exhibition";
+      settingsModeBadge.innerHTML = `<i data-lucide="globe"></i> Mode: <strong>Exhibition Mode</strong> (Read-Only Gallery - Input Private Gist ID below to unlock Owner Admin)`;
+    }
   }
 
   if (typeof lucide !== "undefined" && lucide.createIcons) {
@@ -1037,6 +1056,13 @@ function updateStatsBar() {
 
 // 10. CRUD Operations
 function openWatchModal(watchId = null) {
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  if (!isAdmin) {
+    showToast("Exhibition Mode", "Editing is disabled in Exhibition Mode. Enter your private Gist ID in Settings to enable Owner Admin mode.", "warning");
+    openSettingsModal();
+    return;
+  }
+
   DOM.watchForm.reset();
   DOM.watchId.value = "";
   DOM.watchSearchInput.value = "";
@@ -1078,6 +1104,11 @@ function openWatchModal(watchId = null) {
 
 function handleSaveWatch(e) {
   e.preventDefault();
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  if (!isAdmin) {
+    showToast("Exhibition Mode", "Saving changes is disabled in Exhibition Mode.", "error");
+    return;
+  }
   
   const idVal = DOM.watchId.value;
   const brand = DOM.watchBrand.value.trim();
@@ -1124,6 +1155,12 @@ function handleSaveWatch(e) {
 }
 
 function deleteWatch(watchId) {
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  if (!isAdmin) {
+    showToast("Exhibition Mode", "Deleting watches is disabled in Exhibition Mode.", "error");
+    return;
+  }
+
   const watch = STATE.watches.find(w => w.id == watchId);
   if (!watch) return;
 
@@ -1195,6 +1232,12 @@ function inspectWatch(watchId) {
 }
 
 function loadDemoCollection() {
+  const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+  if (!isAdmin) {
+    showToast("Exhibition Mode", "Loading demo collection is disabled in Exhibition Mode.", "error");
+    return;
+  }
+
   const confirmed = confirm("This will populate your watchlist with a collection of 9 iconic timepieces. Existing local data will be merged. Proceed?");
   if (!confirmed) return;
 
@@ -1249,15 +1292,16 @@ function setupEventListeners() {
     adminBtn.onclick = () => {
       const isAdmin = document.body.classList.contains("is-admin");
       if (isAdmin) {
-        if (confirm("Switch to Public Exhibition View? (This clears local PAT credentials from this browser)")) {
-          STATE.settings.githubPat = "";
+        if (confirm("Switch to Public Exhibition View? (This removes your private Gist ID from local storage)")) {
+          STATE.settings.gistId = "";
           saveLocalState();
           updateAdminUI();
+          syncWithGist(false, true);
           showToast("Switched Mode", "Now viewing in Public Exhibition mode.", "info");
         }
       } else {
         openSettingsModal();
-        showToast("Admin Sign In", "Enter your GitHub PAT in Settings to unlock Owner Admin Mode.", "info");
+        showToast("Admin Mode Setup", "Enter your private Gist ID in Settings to unlock Owner Admin Mode.", "info");
       }
     };
   }
@@ -1270,11 +1314,12 @@ function setupEventListeners() {
   DOM.btnDiagMerge.onclick = mergeCloudAndLocal;
   if (DOM.btnCopySyncLink) {
     DOM.btnCopySyncLink.onclick = () => {
-      if (!STATE.settings.gistId) {
+      const activeGist = STATE.settings.gistId || DEFAULT_GIST_ID;
+      if (!activeGist) {
         showToast("Sync Link Error", "Please configure and save your Gist ID first.", "error");
         return;
       }
-      const syncUrl = `${window.location.origin}${window.location.pathname}?gist=${STATE.settings.gistId}${STATE.settings.githubPat ? '&pat=' + encodeURIComponent(STATE.settings.githubPat) : ''}`;
+      const syncUrl = `${window.location.origin}${window.location.pathname}?gist=${activeGist}${STATE.settings.githubPat ? '&pat=' + encodeURIComponent(STATE.settings.githubPat) : ''}`;
       navigator.clipboard.writeText(syncUrl);
       showToast("1-Click Sync Link Copied!", "Open this link in any browser to sync your collection instantly.", "success");
     };
@@ -1298,6 +1343,12 @@ function setupEventListeners() {
   DOM.importJsonFile.onchange = importBackup;
   
   DOM.btnClearAll.onclick = () => {
+    const isAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
+    if (!isAdmin) {
+      showToast("Exhibition Mode", "Clearing cache is disabled in Exhibition Mode.", "error");
+      return;
+    }
+
     const confirmed = confirm("WARNING: This will permanently delete your local cache. If your Gist ID is set, you can pull it back, otherwise this is irreversible. Proceed?");
     if (confirmed) {
       localStorage.removeItem(STORAGE_KEY);
@@ -1341,7 +1392,7 @@ function openSettingsModal() {
   
   DOM.modalSettings.classList.add("active");
   setTimeout(() => {
-    if (DOM.settingsPat) DOM.settingsPat.focus();
+    if (DOM.settingsGistId) DOM.settingsGistId.focus();
   }, 150);
 }
 
@@ -1349,6 +1400,7 @@ function handleSaveSettings() {
   const pat = DOM.settingsPat.value.trim();
   const gistId = DOM.settingsGistId.value.trim();
   const autoSync = DOM.settingsAutoSync.checked;
+  const wasAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
   
   STATE.settings = {
     githubPat: pat,
@@ -1358,14 +1410,18 @@ function handleSaveSettings() {
   saveLocalState();
   updateAdminUI();
   
-  showToast("Settings Saved", "Preferences updated in local storage.", "success");
-  closeModal(DOM.modalSettings);
+  const nowAdmin = !!(STATE.settings.gistId && STATE.settings.gistId.trim());
   
-  if (pat && gistId) {
-    syncWithGist();
+  if (!wasAdmin && nowAdmin) {
+    showToast("Owner Admin Unlocked!", "Private Gist ID configured. All watch data is now editable.", "success");
+  } else if (wasAdmin && !nowAdmin) {
+    showToast("Exhibition Mode Active", "Switched to read-only Exhibition Gallery mode.", "info");
   } else {
-    updateSyncUIStatus("offline");
+    showToast("Settings Saved", "Preferences updated in local storage.", "success");
   }
+  
+  closeModal(DOM.modalSettings);
+  syncWithGist(false, true);
 }
 
 function closeModal(modalElement) {

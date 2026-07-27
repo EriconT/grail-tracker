@@ -303,6 +303,43 @@ body:not(.is-admin) .admin-only {
   stroke: var(--accent) !important;
 }
 
+/* Settings Mode Badge */
+.settings-mode-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+}
+
+.settings-mode-pill.exhibition {
+  background: hsla(210, 80%, 50%, 0.12);
+  border: 1px solid hsla(210, 80%, 50%, 0.3);
+  color: #60a5fa;
+}
+
+.settings-mode-pill.admin {
+  background: hsla(142, 70%, 45%, 0.12);
+  border: 1px solid hsla(142, 70%, 45%, 0.3);
+  color: #4ade80;
+}
+
+.settings-mode-pill i,
+.settings-mode-pill svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.admin-badge-highlight {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-left: 0.25rem;
+}
+
 /* 4. Common Buttons & Inputs */
 .btn {
   display: inline-flex;
